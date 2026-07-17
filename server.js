@@ -418,7 +418,7 @@ const checks = {
     const storage = await getStorage(client, c);
     return { server: s, serverAnalysis: analyzeServer(s), storage };
   },
-  mongostat: getMongostat,
+  async mongostat(client) { return getMongostat(client, 5); },
   mongotop: getMongotop,
   databaseExplorer: getDatabaseExplorer,
 };
@@ -594,3 +594,4 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => console.log(`performance-all-round dashboard running at http://localhost:${PORT}`));
+
