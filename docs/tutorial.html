@@ -240,9 +240,15 @@ rs.printSecondaryReplicationInfo()</code></pre>
   <h3>Manual Command List</h3>
   <p>See <code>scripts/commands.md</code> for a copyable command list.</p>
 </section>
+<section>
+  <h2>Super Analyzer Dashboard Pages</h2>
+  <p>The deployed dashboard now provides separated graphical pages for Overview, Replica Set, Server, Memory, Storage, Profiler, Logs, mongostat, mongotop, Collections, and Custom Load. Each page shows visual charts, interpretation cards, suggested actions, and raw JSON for deeper review.</p>
+  <p><strong>mongostat</strong> is implemented as a MongoDB-native serverStatus delta sampler. <strong>mongotop</strong> is implemented through the MongoDB top command sampled by namespace. This gives live load response without SSH.</p>
+</section>
 </main>
 </body>
 </html>
+
 
 
 

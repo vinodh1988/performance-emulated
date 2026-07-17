@@ -26,10 +26,12 @@ Because this is now generic and does not SSH to the VM, it cannot read host-only
 - `df -h`
 - `free -m`
 - `top`
-- `mongostat`
-- `mongotop`
+Instead of shelling out for `mongostat` and `mongotop`, this app now provides MongoDB-native equivalents:
 
-Instead it uses MongoDB-native APIs like `getLog`, `serverStatus`, `dbStats`, `collStats`, and `$currentOp`.
+- mongostat page: repeated `serverStatus` samples and delta calculations
+- mongotop page: MongoDB `top` command sampled by namespace
+
+It also uses MongoDB-native APIs like `getLog`, `serverStatus`, `dbStats`, `collStats`, `$currentOp`, profiler data, and `replSetGetStatus`.
 
 ## Linux Docker Compose Setup
 
@@ -147,4 +149,28 @@ PERF_LAB_DB=performance_all_round_lab
 ```
 
 Do not commit the real password. Keep it only in the remote `.env` file.
+
+
+## Super Analyzer Pages
+
+The dashboard is now split into clear pages:
+
+- Overview: top health cards, findings, replication lag, namespace activity, collection footprint
+- Replica Set: member state, health, lag, sync source, and meaning
+- Server: connections, op counters, cache, memory, network, and lock interpretation
+- Memory: WiredTiger cache and dirty cache analyzer
+- Storage: database stats, collection stats, index size, storage size, and meaning
+- Profiler: recent `system.profile` entries with slow-query interpretation
+- Logs: MongoDB `getLog` slow query, TLS/auth, index, storage, and startup warning analysis
+- mongostat: serverStatus delta sampler with mongostat-style rates and graphs
+- mongotop: MongoDB `top` command sampler with namespace read/write timing and graphs
+- Collections: database/collection explorer with counts, indexes, sizes, and sample docs
+- Custom Load: synthetic workload generation followed by storage, mongostat, and mongotop analysis
+
+`mongostat` and `mongotop` are implemented without SSH by using MongoDB-native APIs:
+
+- mongostat page = repeated `serverStatus` samples and delta calculations
+- mongotop page = `top` admin command sampled by namespace
+
+This keeps the app generic and still shows how the cluster responds to custom load.
 

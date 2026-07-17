@@ -3,69 +3,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MongoDB Performance All-Round Dashboard</title>
+  <title>MongoDB Super Analyzer</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>MongoDB Performance All-Round</h1>
-      <p>Preconfigured dashboard for the Hyderabad MongoDB replica set: logs, profiler, slow queries, bottlenecks, replica health, and synthetic workload checks.</p>
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">M</span>
+      <div><strong>MongoDB</strong><small>Super Analyzer</small></div>
     </div>
+    <button class="nav active" data-page="overview">Overview</button>
+    <button class="nav" data-page="replica">Replica Set</button>
+    <button class="nav" data-page="server">Server</button>
+    <button class="nav" data-page="memory">Memory</button>
+    <button class="nav" data-page="storage">Storage</button>
+    <button class="nav" data-page="profiler">Profiler</button>
+    <button class="nav" data-page="logs">Logs</button>
+    <button class="nav" data-page="mongostat">mongostat</button>
+    <button class="nav" data-page="mongotop">mongotop</button>
+    <button class="nav" data-page="databaseExplorer">Collections</button>
+    <button class="nav" data-page="load">Custom Load</button>
     <a class="doc-link" href="/docs/tutorial.html">Tutorial</a>
-  </header>
+  </aside>
 
-  <main>
-    <section class="panel">
-      <h2>Configured Cluster</h2>
-      <p class="hint">This deployment uses server-side Docker environment settings. No user connection details are required in the browser.</p>
-      <div class="cluster-grid">
-        <div><span>Replica Set</span><strong>rsTraining</strong></div>
-        <div><span>Primary Network</span><strong>172.31.4.11:27017</strong></div>
-        <div><span>Secondaries</span><strong>172.31.10.231, 172.31.15.9</strong></div>
-        <div><span>Lab Database</span><strong>performance_all_round_lab</strong></div>
-      </div>
-    </section>
-
-    <section class="actions">
-      <button data-check="health">Replica Health</button>
-      <button data-check="serverStatus">Server Status</button>
-      <button data-check="currentOps">Current Ops</button>
-      <button data-check="profiler">Profiler Entries</button>
-      <button data-check="storage">Storage Stats</button>
-      <button data-check="replicationLag">Replication Lag</button>
-      <button data-check="logs">MongoDB Logs</button>
-      <button data-check="apiBottlenecks">API Bottlenecks</button>
-    </section>
-
-    <section class="panel split">
+  <main class="shell">
+    <header class="topbar">
       <div>
-        <h2>Synthetic Load</h2>
-        <p>Create a realistic lab workload through the MongoDB driver. The script creates customers, orders, events, indexes, and enough data for profiler and explain-plan practice.</p>
+        <h1 id="pageTitle">Overview</h1>
+        <p id="pageSubtitle">Preconfigured analyzer for rsTraining. No connection details required.</p>
       </div>
-      <div class="load-form">
-        <label>Orders<input id="orderCount" type="number" value="75000" min="1000" step="1000"></label>
-        <label>Events<input id="eventCount" type="number" value="25000" min="1000" step="1000"></label>
-        <button id="runLoad">Generate Load</button>
-        <button id="runProfile">Run Profiler Slow Query</button>
+      <div class="top-actions">
+        <button id="refreshPage">Refresh Page</button>
+        <button id="runAll">Run Full Analysis</button>
       </div>
+    </header>
+
+    <section class="cluster-strip">
+      <div><span>Replica Set</span><strong>rsTraining</strong></div>
+      <div><span>Primary</span><strong>172.31.4.11:27017</strong></div>
+      <div><span>Secondaries</span><strong>172.31.10.231, 172.31.15.9</strong></div>
+      <div><span>Lab DB</span><strong>performance_all_round_lab</strong></div>
     </section>
 
-    <section class="cards">
-      <article><h3>MongoDB Logs</h3><p>Uses <code>getLog</code> from MongoDB admin commands. No OS log file access required.</p></article>
-      <article><h3>Performance</h3><p>Compares query plans, documents examined, keys examined, and execution time.</p></article>
-      <article><h3>Bottlenecks</h3><p>Checks serverStatus, WiredTiger cache, locks, connections, and database stats.</p></article>
-      <article><h3>Profiler</h3><p>Enables a short profiler window, reads <code>system.profile</code>, and disables profiling.</p></article>
-    </section>
-
-    <section class="panel">
-      <div class="result-head">
-        <h2>Result</h2>
-        <span id="status">Idle</span>
-      </div>
-      <pre id="output">This dashboard is already connected through server-side configuration. Choose a check to begin.</pre>
-    </section>
+    <section id="content" class="content"></section>
   </main>
+
+  <template id="rawTemplate">
+    <details class="raw"><summary>Raw result</summary><pre></pre></details>
+  </template>
 
   <script src="app.js"></script>
 </body>
