@@ -143,3 +143,28 @@ http://localhost:3010
 ```
 
 The compose file mounts `./mongo.pem` into the container as `/keys/mongo.pem:ro`, and the app uses `/keys/mongo.pem` for SSH.
+
+## PEM Permission Handling Inside Docker
+
+The host key is mounted read-only at `/keys/mongo.pem`. The container entrypoint copies it to `/app/.ssh/mongo.pem`, runs `chmod 400 /app/.ssh/mongo.pem`, and sets the app to use that private copy.
+
+This avoids SSH errors such as:
+
+```text
+WARNING: UNPROTECTED PRIVATE KEY FILE!
+Permissions 0644 for 'mongo.pem' are too open.
+```
+
+The Compose variables are:
+
+```env
+PERF_LOCAL_SSH_KEY=./mongo.pem
+PERF_SSH_KEY_SOURCE=/keys/mongo.pem
+PERF_SSH_KEY=/app/.ssh/mongo.pem
+```
+
+You still should keep the host file restricted:
+
+```bash
+chmod 400 ./mongo.pem
+```
