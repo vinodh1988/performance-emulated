@@ -1,4 +1,4 @@
-﻿const content = document.getElementById("content");
+const content = document.getElementById("content");
 const title = document.getElementById("pageTitle");
 const subtitle = document.getElementById("pageSubtitle");
 const navs = [...document.querySelectorAll(".nav")];
@@ -157,6 +157,12 @@ const pageMeta = {
   mongotop: ["mongotop", "MongoDB top command sampled by namespace like mongotop."],
   databaseExplorer: ["Database Collections", "Databases, collections, indexes, sizes, counts, and samples."],
   load: ["Custom Load Test", "Generate workload and immediately inspect impact."],
+};
+
+const pageCheckMap = {
+  replica: "health",
+  server: "serverStatus",
+  memory: "serverStatus",
 };
 
 function config() { return {}; }
@@ -465,7 +471,7 @@ async function loadPage(page) {
   if (page === "load") return renderLoadIntro();
   content.innerHTML = `<div class="loading"><div class="spinner"></div><strong>Loading ${esc(t)}...</strong><span>Collecting live MongoDB metrics.</span></div>`;
   try {
-    const result = page === "overview" ? await overview() : await check(page === "memory" ? "serverStatus" : page);
+    const result = page === "overview" ? await overview() : await check(pageCheckMap[page] || page);
     lastResults[page] = result;
     if (page === "overview") renderOverview(result); else renderGeneric(page, result);
   } catch (err) {
