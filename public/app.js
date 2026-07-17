@@ -5,6 +5,146 @@ const navs = [...document.querySelectorAll(".nav")];
 let currentPage = "overview";
 let lastResults = {};
 
+
+const pageDetails = {
+  overview: {
+    command: `Composite call: /api/dashboard/overview
+Runs MongoDB APIs: hello, replSetGetStatus, serverStatus, dbStats, collStats, system.profile, getLog, top`,
+    props: [
+      ["setName", "Replica set name returned by hello. Confirms which cluster is being analyzed."],
+      ["primary", "Current writable primary member. Writes and load generation target this member through the driver."],
+      ["currentConnections", "Open MongoDB client connections right now."],
+      ["cacheUsedPct", "WiredTiger cache currently used compared with configured cache maximum."],
+      ["dirtyPct", "Dirty cache percentage. Higher values can indicate write/checkpoint pressure."],
+      ["findings", "Plain-English health findings computed from the raw metrics."],
+    ],
+  },
+  replica: {
+    command: `db.adminCommand({ hello: 1 })
+db.adminCommand({ replSetGetStatus: 1 })`,
+    props: [
+      ["stateStr", "Replica member role such as PRIMARY or SECONDARY."],
+      ["health", "1 means the member is reachable from the current node; 0 means unhealthy/unreachable."],
+      ["optimeDate", "Latest replicated operation timestamp for the member."],
+      ["lagSeconds", "Primary optime minus secondary optime. Large values mean replication lag."],
+      ["pingMs", "Heartbeat network latency in milliseconds."],
+      ["syncSourceHost", "Member from which this secondary is syncing."],
+    ],
+  },
+  server: {
+    command: `db.adminCommand({ serverStatus: 1 })`,
+    props: [
+      ["connections.current", "Current open client connections."],
+      ["connections.available", "Remaining connection capacity."],
+      ["opcounters", "Cumulative insert/query/update/delete/getmore/command counters since process start."],
+      ["mem.resident", "Approximate mongod resident memory in MB."],
+      ["network.numRequests", "Total network requests handled by mongod."],
+      ["locks", "Lock acquisition counters and wait counters by resource."],
+    ],
+  },
+  memory: {
+    command: `db.adminCommand({ serverStatus: 1 }).wiredTiger.cache
+db.adminCommand({ serverStatus: 1 }).mem`,
+    props: [
+      ["bytesCurrentlyInCache", "Current bytes held in WiredTiger cache."],
+      ["maxBytesConfigured", "Configured WiredTiger cache maximum."],
+      ["trackedDirtyBytes", "Dirty bytes waiting to be written/checkpointed."],
+      ["pagesReadIntoCache", "Pages read from disk into cache. Fast growth can mean working set misses."],
+      ["pagesWrittenFromCache", "Pages written from cache to disk."],
+      ["evictionServerUnableToReachGoal", "Eviction pressure signal. Non-zero growth deserves attention."],
+    ],
+  },
+  storage: {
+    command: `db.runCommand({ dbStats: 1, scale: 1024 * 1024 })
+db.runCommand({ collStats: "<collection>", scale: 1024 * 1024 })`,
+    props: [
+      ["objects", "Total documents in the database."],
+      ["dataSize", "Logical uncompressed data size in MB."],
+      ["storageSize", "Allocated physical collection storage in MB."],
+      ["indexSize / totalIndexSize", "Storage used by indexes."],
+      ["nindexes", "Number of indexes on the collection."],
+      ["indexPct", "Index footprint compared with data plus index footprint."],
+    ],
+  },
+  profiler: {
+    command: `db.runCommand({ profile: -1 })
+db.system.profile.find(...).sort({ ts: -1 }).limit(25)`,
+    props: [
+      ["millis", "Operation execution time in milliseconds."],
+      ["docsExamined", "Documents scanned by the operation. High values often indicate inefficient query shape."],
+      ["keysExamined", "Index keys scanned. Shows index use and selectivity."],
+      ["planSummary", "Short winning plan summary such as COLLSCAN or IXSCAN."],
+      ["ns", "Namespace: database.collection affected by the operation."],
+      ["command", "Original command/query shape captured by profiler."],
+    ],
+  },
+  logs: {
+    command: `db.adminCommand({ getLog: "global" })
+db.adminCommand({ getLog: "startupWarnings" })`,
+    props: [
+      ["slowQueries", "Log lines containing slow query messages."],
+      ["tlsAndAuth", "TLS handshake, SSL, authentication, and login-related log lines."],
+      ["indexAndStorage", "Index build, checkpoint, WiredTiger, and storage-related log lines."],
+      ["startupWarnings", "Warnings emitted during MongoDB startup."],
+      ["recent", "Most recent in-memory global log lines returned by getLog."],
+    ],
+  },
+  mongostat: {
+    command: `Sample A: db.adminCommand({ serverStatus: 1 })
+wait 1 second
+Sample B: db.adminCommand({ serverStatus: 1 })
+rate = (B counter - A counter) / seconds`,
+    props: [
+      ["insert/query/update/delete", "Per-second operation rates calculated from opcounters deltas."],
+      ["getmore", "Cursor getMore operations per second."],
+      ["command", "MongoDB command operations per second."],
+      ["netInKBps / netOutKBps", "Network throughput calculated from serverStatus network byte deltas."],
+      ["cacheUsedPct", "WiredTiger cache usage percentage at sample time."],
+      ["dirtyPct", "Dirty cache percentage at sample time."],
+    ],
+  },
+  mongotop: {
+    command: `Sample A: db.adminCommand({ top: 1 })
+wait 1 second
+Sample B: db.adminCommand({ top: 1 })
+namespace time = B namespace counters - A namespace counters`,
+    props: [
+      ["ns", "Namespace measured by MongoDB top command."],
+      ["totalMs", "Total time spent on that namespace during the sample."],
+      ["readMs", "Read-lock/read time during the sample."],
+      ["writeMs", "Write-lock/write time during the sample."],
+      ["totalOps", "Operations observed on the namespace during the sample."],
+      ["readOps/writeOps", "Read and write operation counts in the sample window."],
+    ],
+  },
+  databaseExplorer: {
+    command: `db.adminCommand({ listDatabases: 1, nameOnly: false })
+db.listCollections()
+db.runCommand({ collStats: "<collection>", scale: 1024 * 1024 })
+db.collection.getIndexes()
+db.collection.find({}).limit(3)`,
+    props: [
+      ["sizeOnDisk", "Database size on disk reported by listDatabases."],
+      ["collections", "Collections discovered in each non-system database."],
+      ["count", "Document count from collStats."],
+      ["indexes", "Index definitions returned by getIndexes."],
+      ["sample", "First few documents shown for shape inspection."],
+    ],
+  },
+  load: {
+    command: `Custom load workflow:
+1. db.dropDatabase() for performance_all_round_lab
+2. insertMany(customers, orders, events)
+3. createIndex(...) for tuning indexes
+4. collect storage, mongostat, and mongotop output`,
+    props: [
+      ["customers/orders/events", "Synthetic documents created for the lab workload."],
+      ["storage", "dbStats and collStats immediately after load."],
+      ["mongostat", "serverStatus delta samples collected after load."],
+      ["mongotop", "top namespace timing collected after load."],
+    ],
+  },
+};
 const pageMeta = {
   overview: ["Overview", "Cluster health, bottleneck summary, and top findings."],
   replica: ["Replica Set", "Member health, roles, optime, and lag."],
@@ -35,6 +175,15 @@ async function post(url, body = {}) {
 async function check(name) { return post("/api/run-check", { check: name, config: config() }); }
 async function overview() { return post("/api/dashboard/overview", { config: config() }); }
 
+function commandPanel(page) {
+  const detail = pageDetails[page];
+  if (!detail) return "";
+  return `<section class="grid two explain-grid"><section class="panel command-panel"><h2>Command Used</h2><pre>${esc(detail.command)}</pre></section><section class="panel glossary-panel"><h2>Property Meaning</h2>${table(["Property", "Meaning"], detail.props.map(([p, m]) => `<tr><td><code>${esc(p)}</code></td><td>${esc(m)}</td></tr>`))}</section></section>`;
+}
+
+function pageIntro(page) {
+  return commandPanel(page);
+}
 function setBusy(text) {
   content.innerHTML = `<div class="loading"><div class="spinner"></div><strong>${esc(text)}</strong><span>Collecting live MongoDB metrics...</span></div>`;
 }
@@ -123,6 +272,7 @@ function renderOverview(data) {
   const r = data.result || data;
   const s = r.summary || {};
   content.innerHTML = `
+    ${pageIntro("overview")}
     <section class="metrics">
       ${card("Replica set", s.setName || "-", `primary ${s.primary || "-"}`)}
       ${card("Members", fmt(s.members), "healthy members expected: 3")}
@@ -149,6 +299,7 @@ function renderOverview(data) {
 function renderReplica(r) {
   const members = r.analyzedMembers || r;
   content.innerHTML = `
+    ${pageIntro("replica")}
     <section class="grid two">
       <section class="panel"><h2>Replica Members</h2>${members.map(m => finding(m.analysis)).join("")}</section>
       ${barCanvas("replicaLag", "Lag by Member")}
@@ -164,6 +315,7 @@ function renderServer(r) {
   const a = r.analysis || {};
   const ops = s.opcounters || {};
   content.innerHTML = `
+    ${pageIntro(currentPage === "memory" ? "memory" : "server")}
     <section class="metrics">
       ${card("Host", s.host || "-", s.version || "")}
       ${card("Connections", fmt(s.connections?.current), `${fmt(s.connections?.available)} available`)}
@@ -184,6 +336,7 @@ function renderServer(r) {
 function renderStorage(r) {
   const rows = r.collections || [];
   content.innerHTML = `
+    ${pageIntro("storage")}
     <section class="metrics">
       ${card("Database", r.dbStats?.db || "-", "lab database")}
       ${card("Collections", fmt(r.dbStats?.collections), "collection count")}
@@ -207,6 +360,7 @@ function renderStorage(r) {
 function renderProfiler(r) {
   const entries = r.recent || [];
   content.innerHTML = `
+    ${pageIntro("profiler")}
     <section class="metrics">
       ${card("Profiler level", fmt(r.status?.was), "0 off, 1 slow ops, 2 all ops")}
       ${card("Slow ms", fmt(r.status?.slowms), "threshold")}
@@ -220,6 +374,7 @@ function renderProfiler(r) {
 
 function renderLogs(r) {
   content.innerHTML = `
+    ${pageIntro("logs")}
     <section class="metrics">
       ${card("Slow query lines", fmt(r.counts?.slowQueries), "from getLog")}
       ${card("TLS/Auth lines", fmt(r.counts?.tlsAndAuth), "connection/auth signals")}
@@ -235,6 +390,7 @@ function renderLogs(r) {
 function renderMongostat(r) {
   const rows = r.rows || [];
   content.innerHTML = `
+    ${pageIntro("mongostat")}
     <section class="panel"><h2>What This Means</h2><p>${esc(r.source)}</p>${(r.analysis || []).map(finding).join("")}</section>
     <section class="grid two">${barCanvas("msOps", "Ops Per Second")}${barCanvas("msCache", "Cache Percent")}</section>
     ${table(["Time", "ins/s", "qry/s", "upd/s", "del/s", "cmd/s", "conn", "cache", "dirty", "net in KB/s", "net out KB/s"], rows.map(x => `<tr><td>${esc(x.time)}</td><td>${x.insert.toFixed(1)}</td><td>${x.query.toFixed(1)}</td><td>${x.update.toFixed(1)}</td><td>${x.delete.toFixed(1)}</td><td>${x.command.toFixed(1)}</td><td>${fmt(x.connections)}</td><td>${pct(x.cacheUsedPct)}</td><td>${pct(x.dirtyPct)}</td><td>${fmt(x.netInKBps)}</td><td>${fmt(x.netOutKBps)}</td></tr>`))}
@@ -247,6 +403,7 @@ function renderMongostat(r) {
 function renderMongotop(r) {
   const rows = r.rows || [];
   content.innerHTML = `
+    ${pageIntro("mongotop")}
     <section class="panel"><h2>What This Means</h2><p>${esc(r.source)}</p>${(r.analysis || []).map(finding).join("") || "<p>No namespace activity during the sample.</p>"}</section>
     ${barCanvas("mtNamespaces", "Namespace Total Time ms")}
     ${table(["Namespace", "Total ms", "Read ms", "Write ms", "Ops", "Read Ops", "Write Ops"], rows.map(x => `<tr><td>${esc(x.ns)}</td><td>${x.totalMs.toFixed(1)}</td><td>${x.readMs.toFixed(1)}</td><td>${x.writeMs.toFixed(1)}</td><td>${fmt(x.totalOps)}</td><td>${fmt(x.readOps)}</td><td>${fmt(x.writeOps)}</td></tr>`))}
@@ -258,6 +415,7 @@ function renderMongotop(r) {
 function renderDatabaseExplorer(r) {
   const dbs = r.databases || [];
   content.innerHTML = `
+    ${pageIntro("databaseExplorer")}
     ${dbs.map(db => `<section class="panel"><h2>${esc(db.name)}</h2><p>Size on disk: ${fmt(db.sizeOnDisk)} bytes</p>${table(["Collection", "Docs", "Size MB", "Storage MB", "Index MB", "Indexes"], (db.collections || []).map(c => `<tr><td>${esc(c.name)}</td><td>${fmt(c.count)}</td><td>${mb(c.size)}</td><td>${mb(c.storageSize)}</td><td>${mb(c.totalIndexSize)}</td><td>${fmt(c.nindexes)}</td></tr>`))}<details><summary>Indexes and sample docs</summary><pre>${esc(JSON.stringify(db.collections, null, 2))}</pre></details></section>`).join("")}
     ${raw(r)}
   `;
@@ -265,6 +423,7 @@ function renderDatabaseExplorer(r) {
 
 function renderLoadIntro() {
   content.innerHTML = `
+    ${pageIntro("load")}
     <section class="panel split"><div><h2>Run Custom Load</h2><p>This creates synthetic customers, orders, events and indexes in <code>performance_all_round_lab</code>, then refreshes mongostat/mongotop/storage evidence.</p></div><div class="load-form"><label>Orders<input id="ordersInput" type="number" value="75000" min="1000" step="1000"></label><label>Events<input id="eventsInput" type="number" value="25000" min="1000" step="1000"></label><button id="startLoad">Run Load and Analyze</button><button id="startProfile">Run Slow Query Tuning</button></div></section>
     <section id="loadResult"></section>
   `;
@@ -273,7 +432,7 @@ function renderLoadIntro() {
     target.innerHTML = `<div class="loading"><div class="spinner"></div><strong>Generating load...</strong><span>This can take a minute.</span></div>`;
     const result = await post("/api/load", { orderCount: Number(document.getElementById("ordersInput").value), eventCount: Number(document.getElementById("eventsInput").value), config: config() });
     lastResults.load = result;
-    target.innerHTML = `<section class="metrics">${card("Customers", fmt(result.counts.customers), "created")}${card("Orders", fmt(result.counts.orders), "created")}${card("Events", fmt(result.counts.events), "created")}</section><section class="grid two">${barCanvas("loadColls", "Collection Storage After Load")}${barCanvas("loadStat", "mongostat Command Rate")}</section>${raw(result)}`;
+    target.innerHTML = `${pageIntro("load")}<section class="metrics">${card("Customers", fmt(result.counts.customers), "created")}${card("Orders", fmt(result.counts.orders), "created")}${card("Events", fmt(result.counts.events), "created")}</section><section class="grid two">${barCanvas("loadColls", "Collection Storage After Load")}${barCanvas("loadStat", "mongostat Command Rate")}</section>${raw(result)}`;
     drawBars("loadColls", result.storage.collections.map(c => c.ns.split(".").pop()), result.storage.collections.map(c => c.storageSize || 0), "#1f6f9f");
     drawLine("loadStat", result.mongostat.rows.map((_, i) => i + 1), result.mongostat.rows.map(x => x.command + x.insert + x.query), "#0f7b45");
   };
@@ -281,7 +440,7 @@ function renderLoadIntro() {
     const target = document.getElementById("loadResult");
     target.innerHTML = `<div class="loading"><div class="spinner"></div><strong>Running profiler comparison...</strong><span>Dropping/recreating tuning index inside lab DB.</span></div>`;
     const result = await post("/api/profile-slow-query", { config: config() });
-    target.innerHTML = `<section class="metrics">${card("Docs before", fmt(result.comparison.docsExaminedBefore), "COLLSCAN baseline")}${card("Docs after", fmt(result.comparison.docsExaminedAfter), "indexed plan")}${card("Time before", `${fmt(result.comparison.timeBeforeMs)} ms`, "baseline")}${card("Time after", `${fmt(result.comparison.timeAfterMs)} ms`, "after index")}</section><section class="panel"><h2>Meaning</h2>${finding(result.analysis)}</section>${barCanvas("profileCompare", "Before vs After Docs Examined")}${raw(result)}`;
+    target.innerHTML = `${pageIntro("profiler")}<section class="metrics">${card("Docs before", fmt(result.comparison.docsExaminedBefore), "COLLSCAN baseline")}${card("Docs after", fmt(result.comparison.docsExaminedAfter), "indexed plan")}${card("Time before", `${fmt(result.comparison.timeBeforeMs)} ms`, "baseline")}${card("Time after", `${fmt(result.comparison.timeAfterMs)} ms`, "after index")}</section><section class="panel"><h2>Meaning</h2>${finding(result.analysis)}</section>${barCanvas("profileCompare", "Before vs After Docs Examined")}${raw(result)}`;
     drawBars("profileCompare", ["before", "after"], [result.comparison.docsExaminedBefore, result.comparison.docsExaminedAfter], "#1f6f9f");
   };
 }
@@ -326,3 +485,5 @@ document.getElementById("runAll").onclick = async () => {
 };
 
 loadPage("overview");
+
+
