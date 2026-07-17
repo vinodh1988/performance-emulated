@@ -8,43 +8,80 @@ let lastResults = {};
 
 const pageDetails = {
   overview: {
-    command: `Composite call: /api/dashboard/overview
-Runs MongoDB APIs: hello, replSetGetStatus, serverStatus, dbStats, collStats, system.profile, getLog, top`,
+    command: `POST /api/dashboard/overview
+Backend calls executed in parallel:
+1. db.adminCommand({ hello: 1 })
+2. db.adminCommand({ replSetGetStatus: 1 })
+3. db.adminCommand({ serverStatus: 1 })
+4. db.getSiblingDB(PERF_LAB_DB).runCommand({ dbStats: 1, scale: 1024 * 1024 })
+5. db.getSiblingDB(PERF_LAB_DB).listCollections()
+6. db.getSiblingDB(PERF_LAB_DB).runCommand({ collStats: "<collection>", scale: 1024 * 1024 })
+7. db.getSiblingDB(PERF_LAB_DB).runCommand({ profile: -1 })
+8. db.getSiblingDB(PERF_LAB_DB).system.profile.find(...).sort({ ts: -1 }).limit(25)
+9. db.adminCommand({ getLog: "global" })
+10. db.adminCommand({ getLog: "startupWarnings" })
+11. db.adminCommand({ top: 1 }), wait 1 second, db.adminCommand({ top: 1 })`,
     props: [
-      ["setName", "Replica set name returned by hello. Confirms which cluster is being analyzed."],
-      ["primary", "Current writable primary member. Writes and load generation target this member through the driver."],
-      ["currentConnections", "Open MongoDB client connections right now."],
-      ["cacheUsedPct", "WiredTiger cache currently used compared with configured cache maximum."],
-      ["dirtyPct", "Dirty cache percentage. Higher values can indicate write/checkpoint pressure."],
-      ["findings", "Plain-English health findings computed from the raw metrics."],
+      ["setName", "Replica set name returned by hello."],
+      ["primary", "Current writable primary member from hello/replSetGetStatus."],
+      ["currentConnections", "Open MongoDB client connections from serverStatus.connections.current."],
+      ["cacheUsedPct", "bytes currently in WiredTiger cache divided by maximum bytes configured."],
+      ["dirtyPct", "tracked dirty cache bytes divided by maximum bytes configured."],
+      ["findings", "Combined findings from server, replication, logs, and profiler rules."],
+    ],
+    conditions: [
+      ["Server", "connection > 80% critical, > 50% warning; cache > 90% critical, > 70% warning; dirty cache > 20% warning."],
+      ["Replication", "member health != 1 critical; lag > 30s critical; lag > 5s warning."],
+      ["Storage", "index footprint > 70% of collection data+index footprint warning."],
+      ["Profiler", "millis > 1000 or docsExamined > 100000 critical; millis > 100 or docsExamined > 10000 warning."],
+      ["Logs", "slow query and TLS/auth lines create good/warning findings; storage/index/checkpoint lines are counted and shown for context."],
     ],
   },
   replica: {
-    command: `db.adminCommand({ hello: 1 })
+    command: `POST /api/run-check { check: "health" }
+Backend commands:
+db.adminCommand({ hello: 1 })
 db.adminCommand({ replSetGetStatus: 1 })`,
     props: [
-      ["stateStr", "Replica member role such as PRIMARY or SECONDARY."],
-      ["health", "1 means the member is reachable from the current node; 0 means unhealthy/unreachable."],
-      ["optimeDate", "Latest replicated operation timestamp for the member."],
-      ["lagSeconds", "Primary optime minus secondary optime. Large values mean replication lag."],
-      ["pingMs", "Heartbeat network latency in milliseconds."],
-      ["syncSourceHost", "Member from which this secondary is syncing."],
+      ["stateStr", "Replica member role such as PRIMARY, SECONDARY, STARTUP2, RECOVERING, or ARBITER."],
+      ["health", "1 means reachable/healthy from the current node; 0 means unreachable/unhealthy."],
+      ["optimeDate", "Latest operation timestamp applied by the member."],
+      ["lagSeconds", "Primary optimeDate minus member optimeDate, calculated in seconds."],
+      ["pingMs", "Heartbeat latency to the member in milliseconds."],
+      ["syncSourceHost", "Member from which this secondary is currently syncing."],
+    ],
+    conditions: [
+      ["Critical", "health != 1 or lagSeconds > 30."],
+      ["Warning", "lagSeconds > 5 and <= 30."],
+      ["Good", "health == 1 and lagSeconds <= 5."],
     ],
   },
   server: {
-    command: `db.adminCommand({ serverStatus: 1 })`,
+    command: `POST /api/run-check { check: "serverStatus" }
+Backend command:
+db.adminCommand({ serverStatus: 1 })
+The app then keeps host, version, process, uptime, connections, opcounters, mem, network, wiredTiger.cache, and locks.`,
     props: [
       ["connections.current", "Current open client connections."],
       ["connections.available", "Remaining connection capacity."],
       ["opcounters", "Cumulative insert/query/update/delete/getmore/command counters since process start."],
       ["mem.resident", "Approximate mongod resident memory in MB."],
       ["network.numRequests", "Total network requests handled by mongod."],
-      ["locks", "Lock acquisition counters and wait counters by resource."],
+      ["wiredTigerCache", "Selected WiredTiger cache fields normalized by the backend."],
+    ],
+    conditions: [
+      ["Connection pressure", "current / (current + available): > 80% critical, > 50% warning, otherwise good."],
+      ["Cache usage", "bytesCurrentlyInCache / maxBytesConfigured: > 90% critical, > 70% warning, otherwise good."],
+      ["Dirty cache", "trackedDirtyBytes / maxBytesConfigured: > 20% warning, otherwise good."],
     ],
   },
   memory: {
-    command: `db.adminCommand({ serverStatus: 1 }).wiredTiger.cache
-db.adminCommand({ serverStatus: 1 }).mem`,
+    command: `POST /api/run-check { check: "serverStatus" }
+Backend command:
+db.adminCommand({ serverStatus: 1 })
+Fields read:
+serverStatus.mem
+serverStatus.wiredTiger.cache`,
     props: [
       ["bytesCurrentlyInCache", "Current bytes held in WiredTiger cache."],
       ["maxBytesConfigured", "Configured WiredTiger cache maximum."],
@@ -53,46 +90,78 @@ db.adminCommand({ serverStatus: 1 }).mem`,
       ["pagesWrittenFromCache", "Pages written from cache to disk."],
       ["evictionServerUnableToReachGoal", "Eviction pressure signal. Non-zero growth deserves attention."],
     ],
+    conditions: [
+      ["Cache pressure", "same rule as Server: cache > 90% critical, > 70% warning."],
+      ["Dirty cache", "tracked dirty cache > 20% warning."],
+      ["Eviction clues", "eviction and pages-read fields are shown for interpretation; current rule does not mark severity from them directly."],
+    ],
   },
   storage: {
-    command: `db.runCommand({ dbStats: 1, scale: 1024 * 1024 })
-db.runCommand({ collStats: "<collection>", scale: 1024 * 1024 })`,
+    command: `POST /api/run-check { check: "storage" }
+Backend commands:
+db.getSiblingDB(PERF_LAB_DB).runCommand({ dbStats: 1, scale: 1024 * 1024 })
+db.getSiblingDB(PERF_LAB_DB).listCollections()
+db.getSiblingDB(PERF_LAB_DB).runCommand({ collStats: "<collection>", scale: 1024 * 1024 })`,
     props: [
       ["objects", "Total documents in the database."],
       ["dataSize", "Logical uncompressed data size in MB."],
       ["storageSize", "Allocated physical collection storage in MB."],
-      ["indexSize / totalIndexSize", "Storage used by indexes."],
+      ["totalIndexSize", "Storage used by indexes for a collection."],
       ["nindexes", "Number of indexes on the collection."],
-      ["indexPct", "Index footprint compared with data plus index footprint."],
+      ["indexPct", "totalIndexSize / (collection size + totalIndexSize)."],
+    ],
+    conditions: [
+      ["Warning", "indexPct > 70%. The app flags that indexes dominate the collection footprint."],
+      ["Good", "indexPct <= 70%. Storage is treated as balanced."],
     ],
   },
   profiler: {
-    command: `db.runCommand({ profile: -1 })
-db.system.profile.find(...).sort({ ts: -1 }).limit(25)`,
+    command: `POST /api/run-check { check: "profiler" }
+Backend commands:
+db.getSiblingDB(PERF_LAB_DB).runCommand({ profile: -1 })
+db.getSiblingDB(PERF_LAB_DB).system.profile.find({}, {
+  projection: { ts, ns, op, millis, docsExamined, keysExamined, planSummary, command }
+}).sort({ ts: -1 }).limit(25)`,
     props: [
       ["millis", "Operation execution time in milliseconds."],
-      ["docsExamined", "Documents scanned by the operation. High values often indicate inefficient query shape."],
-      ["keysExamined", "Index keys scanned. Shows index use and selectivity."],
+      ["docsExamined", "Documents scanned by the operation."],
+      ["keysExamined", "Index keys scanned."],
       ["planSummary", "Short winning plan summary such as COLLSCAN or IXSCAN."],
       ["ns", "Namespace: database.collection affected by the operation."],
       ["command", "Original command/query shape captured by profiler."],
     ],
+    conditions: [
+      ["Critical", "millis > 1000 OR docsExamined > 100000."],
+      ["Warning", "millis > 100 OR docsExamined > 10000."],
+      ["Good", "below warning thresholds."],
+    ],
   },
   logs: {
-    command: `db.adminCommand({ getLog: "global" })
-db.adminCommand({ getLog: "startupWarnings" })`,
+    command: `POST /api/run-check { check: "logs" }
+Backend commands:
+db.adminCommand({ getLog: "global" })
+db.adminCommand({ getLog: "startupWarnings" })
+Backend filters global log lines with regexes for slow query, TLS/auth, and storage/index/checkpoint signals.`,
     props: [
       ["slowQueries", "Log lines containing slow query messages."],
-      ["tlsAndAuth", "TLS handshake, SSL, authentication, and login-related log lines."],
+      ["tlsAndAuth", "TLS, SSL, authentication, authorization, login, and SASL related log lines."],
       ["indexAndStorage", "Index build, checkpoint, WiredTiger, and storage-related log lines."],
       ["startupWarnings", "Warnings emitted during MongoDB startup."],
       ["recent", "Most recent in-memory global log lines returned by getLog."],
     ],
+    conditions: [
+      ["Slow query finding", "warning if one or more slow query lines are found; good if none are found."],
+      ["TLS/auth finding", "warning/info finding when matching TLS/auth lines exist."],
+      ["Storage/index lines", "matching storage/index/checkpoint lines are counted and displayed, but they do not currently change severity."],
+    ],
   },
   mongostat: {
-    command: `Sample A: db.adminCommand({ serverStatus: 1 })
+    command: `POST /api/run-check { check: "mongostat" }
+Backend sampler:
+Sample A: db.adminCommand({ serverStatus: 1 })
 wait 1 second
 Sample B: db.adminCommand({ serverStatus: 1 })
+Repeat 5 times
 rate = (B counter - A counter) / seconds`,
     props: [
       ["insert/query/update/delete", "Per-second operation rates calculated from opcounters deltas."],
@@ -102,12 +171,20 @@ rate = (B counter - A counter) / seconds`,
       ["cacheUsedPct", "WiredTiger cache usage percentage at sample time."],
       ["dirtyPct", "Dirty cache percentage at sample time."],
     ],
+    conditions: [
+      ["Warning", "cacheUsedPct > 90 OR dirtyPct > 20."],
+      ["Good", "cacheUsedPct <= 90 AND dirtyPct <= 20."],
+      ["Rates", "operation and network rates are deltas between consecutive serverStatus samples."],
+    ],
   },
   mongotop: {
-    command: `Sample A: db.adminCommand({ top: 1 })
+    command: `POST /api/run-check { check: "mongotop" }
+Backend sampler:
+Sample A: db.adminCommand({ top: 1 })
 wait 1 second
 Sample B: db.adminCommand({ top: 1 })
-namespace time = B namespace counters - A namespace counters`,
+namespace time = B namespace counters - A namespace counters
+Rows are sorted by totalMs and limited to top 25.`,
     props: [
       ["ns", "Namespace measured by MongoDB top command."],
       ["totalMs", "Total time spent on that namespace during the sample."],
@@ -116,32 +193,56 @@ namespace time = B namespace counters - A namespace counters`,
       ["totalOps", "Operations observed on the namespace during the sample."],
       ["readOps/writeOps", "Read and write operation counts in the sample window."],
     ],
+    conditions: [
+      ["Warning", "totalMs > 100 for a namespace in the one-second sample."],
+      ["Good", "totalMs <= 100."],
+      ["Scope", "analysis is created for the top 10 displayed namespaces."],
+    ],
   },
   databaseExplorer: {
-    command: `db.adminCommand({ listDatabases: 1, nameOnly: false })
-db.listCollections()
+    command: `POST /api/run-check { check: "databaseExplorer" }
+Backend commands:
+db.adminCommand({ listDatabases: 1, nameOnly: false })
+For each database except admin, config, and local:
+db.listCollections({}, { nameOnly: true })
 db.runCommand({ collStats: "<collection>", scale: 1024 * 1024 })
 db.collection.getIndexes()
 db.collection.find({}).limit(3)`,
     props: [
       ["sizeOnDisk", "Database size on disk reported by listDatabases."],
-      ["collections", "Collections discovered in each non-system database."],
+      ["collections", "Non-system collections discovered in each inspected database."],
       ["count", "Document count from collStats."],
       ["indexes", "Index definitions returned by getIndexes."],
-      ["sample", "First few documents shown for shape inspection."],
+      ["sample", "First three documents shown for shape inspection."],
+    ],
+    conditions: [
+      ["Database filter", "admin, config, and local databases are skipped."],
+      ["Collection filter", "collections whose names start with system. are skipped."],
+      ["Sample", "only first 3 documents per collection are returned."],
     ],
   },
   load: {
     command: `Custom load workflow:
-1. db.dropDatabase() for performance_all_round_lab
-2. insertMany(customers, orders, events)
-3. createIndex(...) for tuning indexes
-4. collect storage, mongostat, and mongotop output`,
+POST /api/install-lab or POST /api/load
+Backend steps:
+1. db.getSiblingDB(PERF_LAB_DB).dropDatabase()
+2. insertMany(customers)
+3. insertMany(orders)
+4. insertMany(events)
+5. createIndex(...) on orders, events, and customers
+6. collect storage using dbStats/collStats
+7. collect mongostat using serverStatus samples
+8. collect mongotop using top samples`,
     props: [
       ["customers/orders/events", "Synthetic documents created for the lab workload."],
       ["storage", "dbStats and collStats immediately after load."],
       ["mongostat", "serverStatus delta samples collected after load."],
       ["mongotop", "top namespace timing collected after load."],
+    ],
+    conditions: [
+      ["Install Lab DB", "creates default 20,000 customers, 10,000 orders, and 5,000 events only when required collections are missing."],
+      ["Run Load", "recreates the lab database with selected order/event counts; customers remain 20,000."],
+      ["Indexes", "creates compound, TTL, and partial indexes used by the dashboard labs."],
     ],
   },
 };
@@ -184,7 +285,8 @@ async function overview() { return post("/api/dashboard/overview", { config: con
 function commandPanel(page) {
   const detail = pageDetails[page];
   if (!detail) return "";
-  return `<section class="grid two explain-grid"><section class="panel command-panel"><h2>Command Used</h2><pre>${esc(detail.command)}</pre></section><section class="panel glossary-panel"><h2>Property Meaning</h2>${table(["Property", "Meaning"], detail.props.map(([p, m]) => `<tr><td><code>${esc(p)}</code></td><td>${esc(m)}</td></tr>`))}</section></section>`;
+  const conditionTable = detail.conditions ? `<section class="panel glossary-panel"><h2>Analysis Conditions</h2>${table(["Rule", "Condition Used"], detail.conditions.map(([p, m]) => `<tr><td><code>${esc(p)}</code></td><td>${esc(m)}</td></tr>`))}</section>` : "";
+  return `<section class="explain-stack"><section class="grid two explain-grid"><section class="panel command-panel"><h2>Command Used</h2><pre>${esc(detail.command)}</pre></section><section class="panel glossary-panel"><h2>Property Meaning</h2>${table(["Property", "Meaning"], detail.props.map(([p, m]) => `<tr><td><code>${esc(p)}</code></td><td>${esc(m)}</td></tr>`))}</section></section>${conditionTable}</section>`;
 }
 
 function pageIntro(page) {
