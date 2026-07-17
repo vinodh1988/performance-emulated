@@ -17,6 +17,9 @@ const DEFAULT_CONFIG = {
   tlsPEMKeyFile: process.env.PERF_TLS_PEM_KEY_FILE || "/certs/windows-client.pem",
   tlsAllowInvalidHostnames: String(process.env.PERF_TLS_ALLOW_INVALID_HOSTNAMES || "true") === "true",
   labDb: process.env.PERF_LAB_DB || "performance_all_round_lab",
+  autoInstallLab: String(process.env.PERF_AUTO_INSTALL_LAB || "true") === "true",
+  installOrders: Number(process.env.PERF_INSTALL_ORDERS || 10000),
+  installEvents: Number(process.env.PERF_INSTALL_EVENTS || 5000),
 };
 
 function json(res, status, body) {
@@ -504,6 +507,30 @@ async function createSyntheticLoad(client, c, orderCount, eventCount) {
   return { database: c.labDb, counts: { customers: customers.length, orders: orders.length, events: events.length }, storage, mongostat, mongotop };
 }
 
+async function installLabDatabase(client, c, options = {}) {
+  const db = client.db(c.labDb);
+  const existing = await db.listCollections({}, { nameOnly: true }).toArray();
+  const existingNames = existing.map(x => x.name);
+  const hasLabData = ["customers", "orders", "events"].every(name => existingNames.includes(name));
+  if (hasLabData && !options.force) {
+    const storage = await getStorage(client, c);
+    return {
+      installed: false,
+      database: c.labDb,
+      message: "Lab database already exists. Use force=true or Custom Load to recreate it.",
+      collections: existingNames,
+      storage,
+    };
+  }
+  const orderCount = Math.max(1000, Number(options.orderCount || c.installOrders || 10000));
+  const eventCount = Math.max(1000, Number(options.eventCount || c.installEvents || 5000));
+  const output = await createSyntheticLoad(client, c, orderCount, eventCount);
+  return {
+    installed: true,
+    message: `Created ${c.labDb} with customers, orders, events, indexes, and monitoring evidence.`,
+    ...output,
+  };
+}
 async function profileSlowQuery(client, c) {
   const db = client.db(c.labDb);
   const orders = db.collection("orders");
@@ -552,6 +579,15 @@ async function handleApi(req, res) {
       return json(res, 200, { label: "overview", ...output });
     }
 
+    if (req.method === "POST" && req.url === "/api/install-lab") {
+      const body = await readBody(req);
+      const output = await withClient(body.config, (client, c) => installLabDatabase(client, c, {
+        force: bool(body.force),
+        orderCount: body.orderCount,
+        eventCount: body.eventCount,
+      }));
+      return json(res, 200, { label: "Lab Database Install", ...output });
+    }
     if (req.method === "POST" && req.url === "/api/load") {
       const body = await readBody(req);
       const orderCount = Math.max(1000, Number(body.orderCount || 75000));
@@ -593,5 +629,12 @@ const server = http.createServer((req, res) => {
   return serveStatic(req, res);
 });
 
-server.listen(PORT, () => console.log(`performance-all-round dashboard running at http://localhost:${PORT}`));
+server.listen(PORT, () => {
+  console.log(`performance-all-round dashboard running at http://localhost:${PORT}`);
+  if (DEFAULT_CONFIG.autoInstallLab) {
+    withClient({}, installLabDatabase)
+      .then(r => console.log(`lab database install check: ${r.result?.message || "completed"}`))
+      .catch(err => console.error(`lab database install check failed: ${err.message}`));
+  }
+});
 

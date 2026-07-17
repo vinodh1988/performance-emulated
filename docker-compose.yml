@@ -16,6 +16,9 @@ services:
       PERF_TLS_PEM_KEY_FILE: "${PERF_TLS_PEM_KEY_FILE:-/certs/windows-client.pem}"
       PERF_TLS_ALLOW_INVALID_HOSTNAMES: "${PERF_TLS_ALLOW_INVALID_HOSTNAMES:-true}"
       PERF_LAB_DB: "${PERF_LAB_DB:-performance_all_round_lab}"
+      PERF_AUTO_INSTALL_LAB: "${PERF_AUTO_INSTALL_LAB:-true}"
+      PERF_INSTALL_ORDERS: "${PERF_INSTALL_ORDERS:-10000}"
+      PERF_INSTALL_EVENTS: "${PERF_INSTALL_EVENTS:-5000}"
     volumes:
       - "${PERF_CA_FILE:-./mongodb-ca.crt}:/certs/mongodb-ca.crt:ro"
       - "${PERF_CLIENT_PEM_FILE:-./windows-client.pem}:/certs/windows-client.pem:ro"

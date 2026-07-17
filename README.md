@@ -1,4 +1,4 @@
-﻿# Performance All-Round
+# Performance All-Round
 
 Generic MongoDB all-round performance dashboard using direct MongoDB driver access.
 
@@ -174,3 +174,31 @@ The dashboard is now split into clear pages:
 
 This keeps the app generic and still shows how the cluster responds to custom load.
 
+
+### Lab database installation
+
+On container startup the app checks `PERF_LAB_DB` and automatically creates the lab database when the expected `customers`, `orders`, and `events` collections are missing.
+
+Default install size:
+
+```env
+PERF_AUTO_INSTALL_LAB=true
+PERF_INSTALL_ORDERS=10000
+PERF_INSTALL_EVENTS=5000
+```
+
+Manual install from the server:
+
+```bash
+curl -X POST http://localhost:3010/api/install-lab \
+  -H "Content-Type: application/json" \
+  -d '{"orderCount":10000,"eventCount":5000,"config":{}}'
+```
+
+Manual install from the UI:
+
+```text
+Custom Load -> Install Lab DB
+```
+
+Use `Custom Load -> Run Load and Analyze` when you want to recreate the lab database with a larger workload.

@@ -442,9 +442,16 @@ function renderDatabaseExplorer(r) {
 function renderLoadIntro() {
   content.innerHTML = `
     ${pageIntro("load")}
-    <section class="panel split"><div><h2>Run Custom Load</h2><p>This creates synthetic customers, orders, events and indexes in <code>performance_all_round_lab</code>, then refreshes mongostat/mongotop/storage evidence.</p></div><div class="load-form"><label>Orders<input id="ordersInput" type="number" value="75000" min="1000" step="1000"></label><label>Events<input id="eventsInput" type="number" value="25000" min="1000" step="1000"></label><button id="startLoad">Run Load and Analyze</button><button id="startProfile">Run Slow Query Tuning</button></div></section>
+    <section class="panel split"><div><h2>Run Custom Load</h2><p>This creates synthetic customers, orders, events and indexes in <code>performance_all_round_lab</code>, then refreshes mongostat/mongotop/storage evidence.</p></div><div class="load-form"><label>Orders<input id="ordersInput" type="number" value="75000" min="1000" step="1000"></label><label>Events<input id="eventsInput" type="number" value="25000" min="1000" step="1000"></label><button id="installLab">Install Lab DB</button><button id="startLoad">Run Load and Analyze</button><button id="startProfile">Run Slow Query Tuning</button></div></section>
     <section id="loadResult"></section>
   `;
+  document.getElementById("installLab").onclick = async () => {
+    const target = document.getElementById("loadResult");
+    target.innerHTML = `<div class="loading"><div class="spinner"></div><strong>Installing lab database...</strong><span>Creating customers, orders, events, and indexes if missing.</span></div>`;
+    const result = await post("/api/install-lab", { orderCount: 10000, eventCount: 5000, config: config() });
+    lastResults.load = result;
+    target.innerHTML = `<section class="metrics">${card("Installed", result.installed ? "Yes" : "Already exists", result.database || "lab database")}${card("Customers", fmt(result.counts?.customers), "records")}${card("Orders", fmt(result.counts?.orders), "records")}${card("Events", fmt(result.counts?.events), "records")}</section><section class="panel"><h2>Install Result</h2><p>${esc(result.message || "Completed")}</p></section>${result.storage ? raw(result) : raw(result)}`;
+  };
   document.getElementById("startLoad").onclick = async () => {
     const target = document.getElementById("loadResult");
     target.innerHTML = `<div class="loading"><div class="spinner"></div><strong>Generating load...</strong><span>This can take a minute.</span></div>`;
