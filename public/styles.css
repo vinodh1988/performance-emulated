@@ -178,3 +178,31 @@ pre {
   main { padding: 14px; }
 }
 
+
+.cluster-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cluster-grid div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 13px;
+}
+
+.cluster-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+.cluster-grid strong {
+  display: block;
+  color: var(--blue);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+

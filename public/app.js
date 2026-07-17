@@ -1,24 +1,8 @@
-﻿const ids = [
-  "mongoUri",
-  "mongoUser",
-  "mongoPassword",
-  "authDb",
-  "tlsCAFile",
-  "tlsPEMKeyFile",
-  "labDb",
-  "tlsAllowInvalidHostnames",
-];
-
-const output = document.getElementById("output");
+﻿const output = document.getElementById("output");
 const statusText = document.getElementById("status");
 
 function config() {
-  const values = {};
-  for (const id of ids) {
-    const el = document.getElementById(id);
-    values[id] = el.type === "checkbox" ? el.checked : el.value.trim();
-  }
-  return values;
+  return {};
 }
 
 function setBusy(busy, label = "Running") {
@@ -65,15 +49,3 @@ document.getElementById("runLoad").addEventListener("click", () => {
 document.getElementById("runProfile").addEventListener("click", () => {
   post("/api/profile-slow-query", { config: config() }, "Running profiler slow query");
 });
-
-fetch("/api/default-config")
-  .then(res => res.json())
-  .then(defaults => {
-    for (const [key, value] of Object.entries(defaults)) {
-      const el = document.getElementById(key);
-      if (!el) continue;
-      if (el.type === "checkbox") el.checked = Boolean(value);
-      else if (value) el.value = value;
-    }
-  })
-  .catch(() => {});

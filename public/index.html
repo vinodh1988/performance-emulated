@@ -10,24 +10,20 @@
   <header class="topbar">
     <div>
       <h1>MongoDB Performance All-Round</h1>
-      <p>Generic direct MongoDB dashboard for logs, profiler, slow queries, bottlenecks, replica health, and synthetic workload checks.</p>
+      <p>Preconfigured dashboard for the Hyderabad MongoDB replica set: logs, profiler, slow queries, bottlenecks, replica health, and synthetic workload checks.</p>
     </div>
     <a class="doc-link" href="/docs/tutorial.html">Tutorial</a>
   </header>
 
   <main>
     <section class="panel">
-      <h2>MongoDB Connection</h2>
-      <p class="hint">The app connects directly with the MongoDB driver. No SSH, no mongosh, no VM-specific commands.</p>
-      <div class="form-grid wide-first">
-        <label>MongoDB URI<input id="mongoUri" value="mongodb://172.31.4.11:27017,172.31.10.231:27017,172.31.15.9:27017/admin?replicaSet=rsTraining&amp;authSource=admin&amp;tls=true"></label>
-        <label>Mongo User<input id="mongoUser" value="siteAdmin"></label>
-        <label>Password<input id="mongoPassword" type="password" placeholder="Enter MongoDB password"></label>
-        <label>Auth DB<input id="authDb" value="admin"></label>
-        <label>TLS CA File Path<input id="tlsCAFile" value="/certs/mongodb-ca.crt"></label>
-        <label>Client PEM File Path<input id="tlsPEMKeyFile" value="/certs/windows-client.pem"></label>
-        <label>Lab DB<input id="labDb" value="performance_all_round_lab"></label>
-        <label class="check"><span>Allow Invalid Hostnames</span><input id="tlsAllowInvalidHostnames" type="checkbox" checked></label>
+      <h2>Configured Cluster</h2>
+      <p class="hint">This deployment uses server-side Docker environment settings. No user connection details are required in the browser.</p>
+      <div class="cluster-grid">
+        <div><span>Replica Set</span><strong>rsTraining</strong></div>
+        <div><span>Primary Network</span><strong>172.31.4.11:27017</strong></div>
+        <div><span>Secondaries</span><strong>172.31.10.231, 172.31.15.9</strong></div>
+        <div><span>Lab Database</span><strong>performance_all_round_lab</strong></div>
       </div>
     </section>
 
@@ -67,11 +63,10 @@
         <h2>Result</h2>
         <span id="status">Idle</span>
       </div>
-      <pre id="output">Enter MongoDB connection details, then choose a check.</pre>
+      <pre id="output">This dashboard is already connected through server-side configuration. Choose a check to begin.</pre>
     </section>
   </main>
 
   <script src="app.js"></script>
 </body>
 </html>
-
