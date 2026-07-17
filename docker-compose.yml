@@ -1,0 +1,24 @@
+services:
+  performance-all-round:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: performance-all-round
+    ports:
+      - "3010:3010"
+    environment:
+      PORT: "3010"
+      PERF_SSH_USER: "${PERF_SSH_USER:-ubuntu}"
+      PERF_SSH_HOST: "${PERF_SSH_HOST:-18.61.157.150}"
+      PERF_SSH_KEY: "/keys/mongo.pem"
+      PERF_MONGO_HOST: "${PERF_MONGO_HOST:-127.0.0.1}"
+      PERF_MONGO_PORT: "${PERF_MONGO_PORT:-27017}"
+      PERF_MONGO_USER: "${PERF_MONGO_USER:-siteAdmin}"
+      PERF_MONGO_PASSWORD: "${PERF_MONGO_PASSWORD}"
+      PERF_AUTH_DB: "${PERF_AUTH_DB:-admin}"
+      PERF_TLS_CA_FILE: "${PERF_TLS_CA_FILE:-/etc/mongodb/ssl/mongodb-ca.crt}"
+      PERF_TLS_PEM_KEY_FILE: "${PERF_TLS_PEM_KEY_FILE:-/etc/mongodb/ssl/windows-client.pem}"
+      PERF_LAB_DB: "${PERF_LAB_DB:-performance_all_round_lab}"
+    volumes:
+      - "${PERF_LOCAL_SSH_KEY:-D:\\mongo.pem}:/keys/mongo.pem:ro"
+    restart: unless-stopped

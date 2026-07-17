@@ -67,3 +67,37 @@ Command list:
 ```text
 scripts/commands.md
 ```
+
+## Run with Docker Compose
+
+Create your local `.env` from the sample and set the real password:
+
+```powershell
+cd D:\new-projects\mongodb-course\performance-all-round
+Copy-Item .env.example .env
+notepad .env
+```
+
+Start:
+
+```powershell
+docker compose up --build -d
+```
+
+Open:
+
+```text
+http://localhost:3010
+```
+
+Check logs:
+
+```powershell
+docker compose logs -f
+```
+
+Stop:
+
+```powershell
+docker compose down
+```
