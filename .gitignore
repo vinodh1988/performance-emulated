@@ -1,0 +1,4 @@
+.env
+mongo.pem
+*.pem
+node_modules/

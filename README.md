@@ -101,3 +101,45 @@ Stop:
 ```powershell
 docker compose down
 ```
+
+## Linux Deployment Notes
+
+When moving this project to Linux, place the EC2 key file in the project root:
+
+```bash
+cd /path/to/performance-all-round
+cp /path/to/mongo.pem ./mongo.pem
+chmod 400 ./mongo.pem
+cp .env.example .env
+nano .env
+```
+
+Use these Linux-friendly values in `.env`:
+
+```env
+PERF_SSH_USER=ubuntu
+PERF_SSH_HOST=18.61.157.150
+PERF_LOCAL_SSH_KEY=./mongo.pem
+PERF_MONGO_HOST=127.0.0.1
+PERF_MONGO_PORT=27017
+PERF_MONGO_USER=siteAdmin
+PERF_MONGO_PASSWORD=replace-with-admin-password
+PERF_AUTH_DB=admin
+PERF_TLS_CA_FILE=/etc/mongodb/ssl/mongodb-ca.crt
+PERF_TLS_PEM_KEY_FILE=/etc/mongodb/ssl/windows-client.pem
+PERF_LAB_DB=performance_all_round_lab
+```
+
+Start with Compose:
+
+```bash
+docker compose up --build -d
+```
+
+Open:
+
+```text
+http://localhost:3010
+```
+
+The compose file mounts `./mongo.pem` into the container as `/keys/mongo.pem:ro`, and the app uses `/keys/mongo.pem` for SSH.

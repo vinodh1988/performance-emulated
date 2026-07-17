@@ -1,4 +1,4 @@
-services:
+﻿services:
   performance-all-round:
     build:
       context: .
@@ -20,5 +20,6 @@ services:
       PERF_TLS_PEM_KEY_FILE: "${PERF_TLS_PEM_KEY_FILE:-/etc/mongodb/ssl/windows-client.pem}"
       PERF_LAB_DB: "${PERF_LAB_DB:-performance_all_round_lab}"
     volumes:
-      - "${PERF_LOCAL_SSH_KEY:-D:\\mongo.pem}:/keys/mongo.pem:ro"
+      - "${PERF_LOCAL_SSH_KEY:-./mongo.pem}:/keys/mongo.pem:ro"
     restart: unless-stopped
+
