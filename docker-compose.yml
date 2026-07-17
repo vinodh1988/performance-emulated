@@ -8,14 +8,15 @@
       - "3010:3010"
     environment:
       PORT: "3010"
-      PERF_MONGO_URI: "${PERF_MONGO_URI:-mongodb://18.61.157.150:27017,16.112.128.67:27017,16.112.69.233:27017/admin?replicaSet=rsTraining&authSource=admin&tls=true}"
+      PERF_MONGO_URI: "${PERF_MONGO_URI:-mongodb://172.31.4.11:27017,172.31.10.231:27017,172.31.15.9:27017/admin?replicaSet=rsTraining&authSource=admin&tls=true}"
       PERF_MONGO_USER: "${PERF_MONGO_USER:-siteAdmin}"
       PERF_MONGO_PASSWORD: "${PERF_MONGO_PASSWORD}"
       PERF_AUTH_DB: "${PERF_AUTH_DB:-admin}"
       PERF_TLS_CA_FILE: "${PERF_TLS_CA_FILE:-/certs/mongodb-ca.crt}"
       PERF_TLS_PEM_KEY_FILE: "${PERF_TLS_PEM_KEY_FILE:-/certs/windows-client.pem}"
-      PERF_TLS_ALLOW_INVALID_HOSTNAMES: "${PERF_TLS_ALLOW_INVALID_HOSTNAMES:-false}"
+      PERF_TLS_ALLOW_INVALID_HOSTNAMES: "${PERF_TLS_ALLOW_INVALID_HOSTNAMES:-true}"
       PERF_LAB_DB: "${PERF_LAB_DB:-performance_all_round_lab}"
     volumes:
-      - "${PERF_CERTS_DIR:-./certs}:/certs:ro"
+      - "${PERF_CA_FILE:-./mongodb-ca.crt}:/certs/mongodb-ca.crt:ro"
+      - "${PERF_CLIENT_PEM_FILE:-./windows-client.pem}:/certs/windows-client.pem:ro"
     restart: unless-stopped

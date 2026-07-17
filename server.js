@@ -9,13 +9,13 @@ const PUBLIC = path.join(ROOT, "public");
 const DOCS = path.join(ROOT, "docs");
 
 const DEFAULT_CONFIG = {
-  mongoUri: process.env.PERF_MONGO_URI || "mongodb://18.61.157.150:27017,16.112.128.67:27017,16.112.69.233:27017/admin?replicaSet=rsTraining&authSource=admin&tls=true",
+  mongoUri: process.env.PERF_MONGO_URI || "mongodb://172.31.4.11:27017,172.31.10.231:27017,172.31.15.9:27017/admin?replicaSet=rsTraining&authSource=admin&tls=true",
   mongoUser: process.env.PERF_MONGO_USER || "siteAdmin",
   mongoPassword: process.env.PERF_MONGO_PASSWORD || "",
   authDb: process.env.PERF_AUTH_DB || "admin",
   tlsCAFile: process.env.PERF_TLS_CA_FILE || "/certs/mongodb-ca.crt",
   tlsPEMKeyFile: process.env.PERF_TLS_PEM_KEY_FILE || "/certs/windows-client.pem",
-  tlsAllowInvalidHostnames: String(process.env.PERF_TLS_ALLOW_INVALID_HOSTNAMES || "false") === "true",
+  tlsAllowInvalidHostnames: String(process.env.PERF_TLS_ALLOW_INVALID_HOSTNAMES || "true") === "true",
   labDb: process.env.PERF_LAB_DB || "performance_all_round_lab",
 };
 
@@ -354,3 +354,4 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => console.log(`performance-all-round dashboard running at http://localhost:${PORT}`));
+

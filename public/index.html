@@ -20,14 +20,14 @@
       <h2>MongoDB Connection</h2>
       <p class="hint">The app connects directly with the MongoDB driver. No SSH, no mongosh, no VM-specific commands.</p>
       <div class="form-grid wide-first">
-        <label>MongoDB URI<input id="mongoUri" value="mongodb://18.61.157.150:27017,16.112.128.67:27017,16.112.69.233:27017/admin?replicaSet=rsTraining&amp;authSource=admin&amp;tls=true"></label>
+        <label>MongoDB URI<input id="mongoUri" value="mongodb://172.31.4.11:27017,172.31.10.231:27017,172.31.15.9:27017/admin?replicaSet=rsTraining&amp;authSource=admin&amp;tls=true"></label>
         <label>Mongo User<input id="mongoUser" value="siteAdmin"></label>
         <label>Password<input id="mongoPassword" type="password" placeholder="Enter MongoDB password"></label>
         <label>Auth DB<input id="authDb" value="admin"></label>
         <label>TLS CA File Path<input id="tlsCAFile" value="/certs/mongodb-ca.crt"></label>
         <label>Client PEM File Path<input id="tlsPEMKeyFile" value="/certs/windows-client.pem"></label>
         <label>Lab DB<input id="labDb" value="performance_all_round_lab"></label>
-        <label class="check"><span>Allow Invalid Hostnames</span><input id="tlsAllowInvalidHostnames" type="checkbox"></label>
+        <label class="check"><span>Allow Invalid Hostnames</span><input id="tlsAllowInvalidHostnames" type="checkbox" checked></label>
       </div>
     </section>
 
@@ -74,3 +74,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+

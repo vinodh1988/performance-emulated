@@ -49,14 +49,15 @@ nano .env
 Example `.env`:
 
 ```env
-PERF_MONGO_URI=mongodb://18.61.157.150:27017,16.112.128.67:27017,16.112.69.233:27017/admin?replicaSet=rsTraining&authSource=admin&tls=true
+PERF_MONGO_URI=mongodb://172.31.4.11:27017,172.31.10.231:27017,172.31.15.9:27017/admin?replicaSet=rsTraining&authSource=admin&tls=true
 PERF_MONGO_USER=siteAdmin
 PERF_MONGO_PASSWORD=replace-with-admin-password
 PERF_AUTH_DB=admin
-PERF_CERTS_DIR=./certs
+PERF_CA_FILE=/home/ubuntu/mongodb-ca.crt
+PERF_CLIENT_PEM_FILE=/home/ubuntu/windows-client.pem
 PERF_TLS_CA_FILE=/certs/mongodb-ca.crt
 PERF_TLS_PEM_KEY_FILE=/certs/windows-client.pem
-PERF_TLS_ALLOW_INVALID_HOSTNAMES=false
+PERF_TLS_ALLOW_INVALID_HOSTNAMES=true
 PERF_LAB_DB=performance_all_round_lab
 ```
 
@@ -120,3 +121,30 @@ http://localhost:3010
 ## Important
 
 The synthetic load action drops and recreates only the configured lab database. Keep `PERF_LAB_DB=performance_all_round_lab` unless you intentionally want to target another database.
+
+## Fixed Hyderabad VM Deployment
+
+For the target Linux VM where the replica set primary also runs, the compose setup expects:
+
+```text
+/home/ubuntu/mongodb-ca.crt
+/home/ubuntu/windows-client.pem
+```
+
+The remote `.env` used for deployment is created with:
+
+```env
+PERF_MONGO_URI=mongodb://172.31.4.11:27017,172.31.10.231:27017,172.31.15.9:27017/admin?replicaSet=rsTraining&authSource=admin&tls=true
+PERF_MONGO_USER=siteAdmin
+PERF_MONGO_PASSWORD=<configured-on-remote-vm>
+PERF_AUTH_DB=admin
+PERF_CA_FILE=/home/ubuntu/mongodb-ca.crt
+PERF_CLIENT_PEM_FILE=/home/ubuntu/windows-client.pem
+PERF_TLS_CA_FILE=/certs/mongodb-ca.crt
+PERF_TLS_PEM_KEY_FILE=/certs/windows-client.pem
+PERF_TLS_ALLOW_INVALID_HOSTNAMES=true
+PERF_LAB_DB=performance_all_round_lab
+```
+
+Do not commit the real password. Keep it only in the remote `.env` file.
+
