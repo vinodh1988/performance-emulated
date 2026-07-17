@@ -1,4 +1,5 @@
-.env
-mongo.pem
+﻿.env
+certs/
 *.pem
+*.crt
 node_modules/

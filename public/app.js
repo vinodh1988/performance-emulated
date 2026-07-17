@@ -1,22 +1,24 @@
-const ids = [
-  "sshUser",
-  "sshHost",
-  "sshKey",
-  "mongoHost",
-  "mongoPort",
+﻿const ids = [
+  "mongoUri",
   "mongoUser",
   "mongoPassword",
   "authDb",
   "tlsCAFile",
   "tlsPEMKeyFile",
   "labDb",
+  "tlsAllowInvalidHostnames",
 ];
 
 const output = document.getElementById("output");
 const statusText = document.getElementById("status");
 
 function config() {
-  return Object.fromEntries(ids.map(id => [id, document.getElementById(id).value.trim()]));
+  const values = {};
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    values[id] = el.type === "checkbox" ? el.checked : el.value.trim();
+  }
+  return values;
 }
 
 function setBusy(busy, label = "Running") {
@@ -25,33 +27,7 @@ function setBusy(busy, label = "Running") {
 }
 
 function formatResult(result) {
-  const lines = [];
-  lines.push(`# ${result.label || "Result"}`);
-  lines.push(`ok: ${result.ok}`);
-  if (result.code !== undefined) lines.push(`exitCode: ${result.code}`);
-  if (result.startedAt) lines.push(`startedAt: ${result.startedAt}`);
-  if (result.finishedAt) lines.push(`finishedAt: ${result.finishedAt}`);
-  if (result.command) {
-    lines.push("");
-    lines.push("## Remote command");
-    lines.push(result.command);
-  }
-  if (result.stdout) {
-    lines.push("");
-    lines.push("## stdout");
-    lines.push(result.stdout);
-  }
-  if (result.stderr) {
-    lines.push("");
-    lines.push("## stderr");
-    lines.push(result.stderr);
-  }
-  if (result.error) {
-    lines.push("");
-    lines.push("## error");
-    lines.push(result.error);
-  }
-  return lines.join("\n");
+  return JSON.stringify(result, null, 2);
 }
 
 async function post(url, body, label) {
@@ -78,20 +54,6 @@ document.querySelectorAll("[data-check]").forEach(btn => {
   });
 });
 
-document.querySelectorAll("[data-tool]").forEach(btn => {
-  btn.addEventListener("click", () => {
-    post("/api/run-tool", { config: config(), tool: btn.dataset.tool }, `Running ${btn.dataset.tool}`);
-  });
-});
-
-document.querySelector("[data-special='logs']").addEventListener("click", () => {
-  post("/api/logs", { config: config() }, "Analyzing logs");
-});
-
-document.querySelector("[data-special='os']").addEventListener("click", () => {
-  post("/api/os", { config: config() }, "Checking OS resources");
-});
-
 document.getElementById("runLoad").addEventListener("click", () => {
   post("/api/load", {
     config: config(),
@@ -109,7 +71,9 @@ fetch("/api/default-config")
   .then(defaults => {
     for (const [key, value] of Object.entries(defaults)) {
       const el = document.getElementById(key);
-      if (el && value) el.value = value;
+      if (!el) continue;
+      if (el.type === "checkbox") el.checked = Boolean(value);
+      else if (value) el.value = value;
     }
   })
   .catch(() => {});

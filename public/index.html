@@ -10,26 +10,24 @@
   <header class="topbar">
     <div>
       <h1>MongoDB Performance All-Round</h1>
-      <p>Logs, profiler, slow queries, bottlenecks, replica set health, and synthetic workload checks for a TLS-enabled MongoDB cluster.</p>
+      <p>Generic direct MongoDB dashboard for logs, profiler, slow queries, bottlenecks, replica health, and synthetic workload checks.</p>
     </div>
     <a class="doc-link" href="/docs/tutorial.html">Tutorial</a>
   </header>
 
   <main>
     <section class="panel">
-      <h2>Cluster Connection</h2>
-      <div class="form-grid">
-        <label>SSH User<input id="sshUser" value="ubuntu"></label>
-        <label>SSH Host<input id="sshHost" value="18.61.157.150"></label>
-        <label>SSH Key Path<input id="sshKey" value="D:\mongo.pem"></label>
-        <label>Mongo Host<input id="mongoHost" value="127.0.0.1"></label>
-        <label>Mongo Port<input id="mongoPort" value="27017"></label>
+      <h2>MongoDB Connection</h2>
+      <p class="hint">The app connects directly with the MongoDB driver. No SSH, no mongosh, no VM-specific commands.</p>
+      <div class="form-grid wide-first">
+        <label>MongoDB URI<input id="mongoUri" value="mongodb://18.61.157.150:27017,16.112.128.67:27017,16.112.69.233:27017/admin?replicaSet=rsTraining&amp;authSource=admin&amp;tls=true"></label>
         <label>Mongo User<input id="mongoUser" value="siteAdmin"></label>
-        <label>Password<input id="mongoPassword" type="password" placeholder="Enter admin password"></label>
+        <label>Password<input id="mongoPassword" type="password" placeholder="Enter MongoDB password"></label>
         <label>Auth DB<input id="authDb" value="admin"></label>
-        <label>TLS CA File<input id="tlsCAFile" value="/etc/mongodb/ssl/mongodb-ca.crt"></label>
-        <label>TLS PEM Key File<input id="tlsPEMKeyFile" value="/etc/mongodb/ssl/windows-client.pem"></label>
+        <label>TLS CA File Path<input id="tlsCAFile" value="/certs/mongodb-ca.crt"></label>
+        <label>Client PEM File Path<input id="tlsPEMKeyFile" value="/certs/windows-client.pem"></label>
         <label>Lab DB<input id="labDb" value="performance_all_round_lab"></label>
+        <label class="check"><span>Allow Invalid Hostnames</span><input id="tlsAllowInvalidHostnames" type="checkbox"></label>
       </div>
     </section>
 
@@ -40,16 +38,14 @@
       <button data-check="profiler">Profiler Entries</button>
       <button data-check="storage">Storage Stats</button>
       <button data-check="replicationLag">Replication Lag</button>
-      <button data-special="logs">Analyze Logs</button>
-      <button data-special="os">Memory / Disk</button>
-      <button data-tool="mongostat">mongostat</button>
-      <button data-tool="mongotop">mongotop</button>
+      <button data-check="logs">MongoDB Logs</button>
+      <button data-check="apiBottlenecks">API Bottlenecks</button>
     </section>
 
     <section class="panel split">
       <div>
         <h2>Synthetic Load</h2>
-        <p>Create a realistic lab workload on the current primary. The script creates orders, events, indexes, profiler activity, and explain-plan comparison data.</p>
+        <p>Create a realistic lab workload through the MongoDB driver. The script creates customers, orders, events, indexes, and enough data for profiler and explain-plan practice.</p>
       </div>
       <div class="load-form">
         <label>Orders<input id="orderCount" type="number" value="75000" min="1000" step="1000"></label>
@@ -60,34 +56,21 @@
     </section>
 
     <section class="cards">
-      <article>
-        <h3>Log Analysis</h3>
-        <p>Find slow query, TLS, authentication, index build, and restore signals from <code>/var/log/mongodb/mongod.log</code>.</p>
-      </article>
-      <article>
-        <h3>Performance</h3>
-        <p>Compare query plans, documents examined, keys examined, and execution time before and after indexes.</p>
-      </article>
-      <article>
-        <h3>Bottlenecks</h3>
-        <p>Check memory, WiredTiger cache, disk usage, hot namespaces, lock waits, and replication lag.</p>
-      </article>
-      <article>
-        <h3>Profiler</h3>
-        <p>Enable a short profiler window, capture slow operations, read <code>system.profile</code>, and disable profiling.</p>
-      </article>
+      <article><h3>MongoDB Logs</h3><p>Uses <code>getLog</code> from MongoDB admin commands. No OS log file access required.</p></article>
+      <article><h3>Performance</h3><p>Compares query plans, documents examined, keys examined, and execution time.</p></article>
+      <article><h3>Bottlenecks</h3><p>Checks serverStatus, WiredTiger cache, locks, connections, and database stats.</p></article>
+      <article><h3>Profiler</h3><p>Enables a short profiler window, reads <code>system.profile</code>, and disables profiling.</p></article>
     </section>
 
     <section class="panel">
       <div class="result-head">
-        <h2>Command Output</h2>
+        <h2>Result</h2>
         <span id="status">Idle</span>
       </div>
-      <pre id="output">Choose a check or generate synthetic load.</pre>
+      <pre id="output">Enter MongoDB connection details, then choose a check.</pre>
     </section>
   </main>
 
   <script src="app.js"></script>
 </body>
 </html>
-

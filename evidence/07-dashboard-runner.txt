@@ -1,20 +1,20 @@
-Dashboard Runner Model
+﻿Dashboard Runner Model
 
 Backend:
 server.js
 
 Runtime:
-Node.js native http server with no npm dependencies.
+Node.js HTTP server using the official MongoDB Node.js driver.
 
 Execution:
-- Browser sends a request to /api/run-check, /api/logs, /api/os, /api/run-tool, /api/load, or /api/profile-slow-query.
-- Backend builds a remote SSH command.
-- SSH connects to the primary node.
-- Remote command runs mongosh, mongostat, mongotop, grep, df, free, or top.
-- Output returns to the browser.
+- Browser sends a request to /api/run-check, /api/load, or /api/profile-slow-query.
+- Backend opens a direct MongoDB driver connection using the supplied URI, username, password, CA file, and optional client PEM.
+- MongoDB commands run through the database API: hello, replSetGetStatus, serverStatus, getLog, dbStats, collStats, $currentOp, profile, and explain.
+- Output returns to the browser as JSON.
 
 Safety:
-- Password is required at runtime.
-- Password is redacted from displayed remote command.
-- Profiler script disables profiler after collecting evidence.
+- No SSH is required.
+- No mongosh or shell command execution is required.
+- Password is supplied at runtime or through environment variables.
 - Synthetic load targets only performance_all_round_lab by default.
+- Profiler workflow disables profiling after collecting evidence.

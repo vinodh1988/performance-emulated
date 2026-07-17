@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #f5f7fb;
   --panel: #ffffff;
   --ink: #162033;
@@ -67,11 +67,15 @@ h2 { margin: 0 0 14px; }
 h3 { margin: 0 0 8px; }
 p { color: var(--muted); line-height: 1.55; }
 
+.hint { margin-top: -4px; }
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
+
+.wide-first label:first-child { grid-column: 1 / -1; }
 
 label {
   display: grid;
@@ -79,6 +83,9 @@ label {
   font-size: 13px;
   color: var(--muted);
 }
+
+.check { align-content: end; grid-template-columns: 1fr auto; align-items: center; }
+.check input { width: auto; }
 
 input {
   width: 100%;
@@ -170,3 +177,4 @@ pre {
   .form-grid, .actions, .cards { grid-template-columns: 1fr; }
   main { padding: 14px; }
 }
+

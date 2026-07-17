@@ -1,20 +1,24 @@
-Docker Run
+﻿Docker Run
 
 Build:
-docker build -t performance-all-round .
+docker compose up --build -d
 
-Run:
-docker run --rm -p 3010:3010 \
-  -v D:\mongo.pem:/keys/mongo.pem:ro \
-  -e PERF_SSH_KEY=/keys/mongo.pem \
-  -e PERF_SSH_HOST=18.61.157.150 \
-  -e PERF_MONGO_PASSWORD="<admin-password>" \
-  performance-all-round
+Certificate layout on Linux:
+mkdir -p certs
+cp /path/to/mongodb-ca.crt ./certs/mongodb-ca.crt
+cp /path/to/windows-client.pem ./certs/windows-client.pem
+chmod 444 ./certs/mongodb-ca.crt
+chmod 400 ./certs/windows-client.pem
+
+Compose mount:
+./certs:/certs:ro
+
+Environment:
+PERF_MONGO_URI=mongodb://host1:27017,host2:27017,host3:27017/admin?replicaSet=rsTraining&authSource=admin&tls=true
+PERF_MONGO_USER=siteAdmin
+PERF_MONGO_PASSWORD=<admin-password>
+PERF_TLS_CA_FILE=/certs/mongodb-ca.crt
+PERF_TLS_PEM_KEY_FILE=/certs/windows-client.pem
 
 Open:
 http://localhost:3010
-
-Notes:
-- Docker image includes Node.js and openssh-client.
-- MongoDB tools do not need to be installed in the container because tools run on the MongoDB server through SSH.
-- The SSH key is mounted read-only.

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -35,7 +35,7 @@
   <p><code>performance-all-round</code> is a dashboard plus tutorial project. It is meant to be useful during real MongoDB administration practice, not only as a static document.</p>
   <table>
     <tr><th>Layer</th><th>What It Does</th></tr>
-    <tr><td>Web dashboard</td><td>Runs MongoDB performance checks through SSH and shows output in the browser.</td></tr>
+    <tr><td>Web dashboard</td><td>Runs MongoDB performance checks through the MongoDB driver and shows output in the browser.</td></tr>
     <tr><td>Synthetic load</td><td>Creates realistic collections and indexes so slow query, profiler, stats, and monitoring checks have meaningful data.</td></tr>
     <tr><td>Command scripts</td><td>Reusable MongoDB scripts for load generation and slow query comparison.</td></tr>
     <tr><td>Tutorial</td><td>Step-by-step commands, interpretation notes, and screenshot panels for every major topic.</td></tr>
@@ -45,39 +45,53 @@
 
 <section id="run">
   <h2>2. Run the Dashboard Locally</h2>
-  <p>The app uses only Node.js built-in modules. No npm install is required.</p>
-  <pre><code>cd D:\new-projects\mongodb-course\performance-all-round
-$env:PERF_SSH_KEY="D:\mongo.pem"
-$env:PERF_SSH_HOST="18.61.157.150"
-$env:PERF_MONGO_PASSWORD="&lt;admin-password&gt;"
+  <p>The app uses the MongoDB Node.js driver. Install dependencies once, then connect directly to the replica set with URI, username/password, and TLS certificate paths.</p>
+  <pre><code>cd /path/to/performance-all-round
+npm install
+
+PERF_MONGO_URI="mongodb://host1:27017,host2:27017,host3:27017/admin?replicaSet=rsTraining&amp;authSource=admin&amp;tls=true" \
+PERF_MONGO_USER="siteAdmin" \
+PERF_MONGO_PASSWORD="&lt;admin-password&gt;" \
+PERF_TLS_CA_FILE="/path/to/mongodb-ca.crt" \
+PERF_TLS_PEM_KEY_FILE="/path/to/windows-client.pem" \
 npm start</code></pre>
   <p>Open the dashboard:</p>
   <pre><code>http://localhost:3010</code></pre>
   <h3>Dashboard Buttons</h3>
   <ul>
-    <li><strong>Replica Health</strong> checks <code>db.hello()</code> and <code>rs.status()</code>.</li>
+    <li><strong>Replica Health</strong> checks <code>hello</code> and <code>replSetGetStatus</code>.</li>
     <li><strong>Server Status</strong> captures connections, op counters, memory, WiredTiger cache, and locks.</li>
-    <li><strong>Analyze Logs</strong> tails MongoDB logs and filters slow query, TLS, and authentication messages.</li>
-    <li><strong>Memory / Disk</strong> runs <code>free -m</code>, <code>df -h</code>, and <code>top</code>.</li>
-    <li><strong>mongostat</strong> and <strong>mongotop</strong> provide live command-line monitoring.</li>
+    <li><strong>MongoDB Logs</strong> uses the <code>getLog</code> admin command.</li>
+    <li><strong>API Bottlenecks</strong> reports MongoDB memory, cache, lock, connection, and storage indicators.</li>
+    <li><strong>Storage Stats</strong> uses <code>dbStats</code> and <code>collStats</code>.</li>
     <li><strong>Generate Load</strong> creates the lab database and indexes.</li>
-    <li><strong>Run Profiler Slow Query</strong> compares slow query performance before and after index creation.</li>
+    <li><strong>Run Profiler Slow Query</strong> compares before and after index performance.</li>
   </ul>
   <img class="shot" src="assets/screenshots/07-dashboard-runner.png" alt="Dashboard runner screenshot">
 </section>
 
 <section id="docker">
   <h2>3. Dockerized Run</h2>
-  <p>The Docker image contains Node.js and <code>openssh-client</code>. MongoDB tools do not need to exist inside the container because they run on the MongoDB server through SSH.</p>
-  <pre><code>cd D:\new-projects\mongodb-course\performance-all-round
-docker build -t performance-all-round .
+  <p>The container connects directly to MongoDB. Mount a local certificate folder into <code>/certs</code> and provide the MongoDB URI and credentials through <code>.env</code>.</p>
+  <pre><code>cd /path/to/performance-all-round
+mkdir -p certs
+cp /path/to/mongodb-ca.crt ./certs/mongodb-ca.crt
+cp /path/to/windows-client.pem ./certs/windows-client.pem
+chmod 444 ./certs/mongodb-ca.crt
+chmod 400 ./certs/windows-client.pem
+cp .env.example .env
+nano .env
 
-docker run --rm -p 3010:3010 `
-  -v D:\mongo.pem:/keys/mongo.pem:ro `
-  -e PERF_SSH_KEY=/keys/mongo.pem `
-  -e PERF_SSH_HOST=18.61.157.150 `
-  -e PERF_MONGO_PASSWORD="&lt;admin-password&gt;" `
-  performance-all-round</code></pre>
+docker compose up --build -d</code></pre>
+  <h3>Example .env</h3>
+  <pre><code>PERF_MONGO_URI=mongodb://host1:27017,host2:27017,host3:27017/admin?replicaSet=rsTraining&amp;authSource=admin&amp;tls=true
+PERF_MONGO_USER=siteAdmin
+PERF_MONGO_PASSWORD=&lt;admin-password&gt;
+PERF_AUTH_DB=admin
+PERF_CERTS_DIR=./certs
+PERF_TLS_CA_FILE=/certs/mongodb-ca.crt
+PERF_TLS_PEM_KEY_FILE=/certs/windows-client.pem
+PERF_LAB_DB=performance_all_round_lab</code></pre>
   <img class="shot" src="assets/screenshots/08-docker-run.png" alt="Docker run screenshot">
 </section>
 
@@ -107,10 +121,8 @@ db.orders.createIndex(
 <section id="logs">
   <h2>5. Log Analysis Commands</h2>
   <p>Logs are the best source when you need to know exactly what MongoDB recorded: slow query, TLS failure, authentication, index build, restore, import, network disconnect, or storage warning.</p>
-  <pre><code>sudo tail -n 120 /var/log/mongodb/mongod.log
-sudo grep -i "slow query" /var/log/mongodb/mongod.log | tail -n 40
-sudo grep -i "SSLHandshakeFailed\|authentication\|Successfully authenticated" /var/log/mongodb/mongod.log | tail -n 40
-sudo grep -i "Index build\|WTCHKPT\|error\|exception" /var/log/mongodb/mongod.log | tail -n 40</code></pre>
+  <pre><code>db.adminCommand({ getLog: "global" })
+db.adminCommand({ getLog: "startupWarnings" })</code></pre>
   <h3>How to Read Log Evidence</h3>
   <ul>
     <li><code>planSummary: COLLSCAN</code> points to a query that scanned a collection.</li>
@@ -145,9 +157,7 @@ db.orders.find({
 <section id="memory">
   <h2>7. Memory Bottlenecks</h2>
   <p>Memory bottlenecks appear when MongoDB and the OS cannot keep the active working set in RAM. Watch WiredTiger cache, available memory, dirty bytes, eviction pressure, and swap.</p>
-  <pre><code>free -m
-
-const s = db.serverStatus()
+  <pre><code>const s = db.serverStatus()
 printjson({
   mem: s.mem,
   cacheBytes: s.wiredTiger.cache["bytes currently in the cache"],
@@ -162,10 +172,7 @@ printjson({
 <section id="storage">
   <h2>8. Storage Bottlenecks</h2>
   <p>Storage bottlenecks can come from low disk space, slow disk reads, heavy checkpoints, large indexes, or write bursts.</p>
-  <pre><code>df -h
-sudo du -sh /var/lib/mongodb
-
-use performance_all_round_lab
+  <pre><code>use performance_all_round_lab
 db.stats(1024 * 1024)
 db.orders.stats(1024 * 1024)
 db.events.stats(1024 * 1024)</code></pre>
@@ -222,9 +229,9 @@ rs.printSecondaryReplicationInfo()</code></pre>
     <li>Check replica set health and lag with <code>rs.status()</code>.</li>
     <li>Run dashboard <strong>Server Status</strong> to inspect connections, op counters, memory, cache, and locks.</li>
     <li>Run dashboard <strong>Analyze Logs</strong> to inspect slow query, TLS, auth, and index build messages.</li>
-    <li>Run dashboard <strong>Memory / Disk</strong> for OS-level pressure.</li>
-    <li>Run <strong>mongostat</strong> for live server counters.</li>
-    <li>Run <strong>mongotop</strong> to identify hot namespaces.</li>
+    <li>Run dashboard <strong>API Bottlenecks</strong> for MongoDB memory, cache, lock, and storage indicators.</li>
+    <li>Use <code>serverStatus</code> counters for live server activity.</li>
+    <li>Use profiler, current operations, and collection stats to identify hot namespaces.</li>
     <li>Enable profiler briefly and capture <code>system.profile</code>.</li>
     <li>Use <code>explain("executionStats")</code> to compare query plans.</li>
     <li>Create or adjust indexes, then re-test the same query.</li>
@@ -236,3 +243,6 @@ rs.printSecondaryReplicationInfo()</code></pre>
 </main>
 </body>
 </html>
+
+
+
