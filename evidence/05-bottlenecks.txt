@@ -1,0 +1,26 @@
+Memory and Storage Bottlenecks
+
+Memory commands:
+free -m
+db.serverStatus().mem
+db.serverStatus().wiredTiger.cache
+
+Memory signals:
+- Low available memory
+- WiredTiger cache near maximum configured
+- Dirty cache growing continuously
+- Eviction pressure
+- High resident memory plus system swapping
+
+Storage commands:
+df -h
+du -sh /var/lib/mongodb
+db.stats(1024 * 1024)
+db.orders.stats(1024 * 1024)
+
+Storage signals:
+- Disk usage above safe threshold
+- Rapid index growth
+- Storage size growing faster than data size
+- High disk wait in top or iostat
+- Slow queries showing bytesRead in logs

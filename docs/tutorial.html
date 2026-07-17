@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance All-Round Tutorial</title>
+<style>
+:root{--ink:#172033;--muted:#536273;--line:#d7e0ea;--blue:#123b63;--soft:#eef7ff;--green:#0f7b45;--amber:#9a5b00;--code:#0f172a}
+*{box-sizing:border-box}body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:#f6f8fb;color:var(--ink);line-height:1.62}header{background:linear-gradient(135deg,#123b63,#1f6f9f);color:white;padding:38px 46px}header h1{margin:0 0 10px;font-size:34px}header p{margin:0;max-width:1050px;color:#dcecff;font-size:18px}main{max-width:1180px;margin:0 auto;padding:28px}section{background:white;border:1px solid var(--line);border-radius:8px;margin:18px 0;padding:24px}h2{margin:0 0 12px;color:var(--blue);font-size:26px}h3{margin:22px 0 8px;color:#1d344f}p{margin:8px 0}a{color:#174ea6}code{background:#eef2f7;padding:2px 6px;border-radius:5px}pre{background:var(--code);color:#e5edf8;padding:16px;border-radius:8px;overflow:auto;white-space:pre}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:14px 0}th,td{border:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}th{background:#e9f2fb}.note{border-left:5px solid var(--green);background:#eefbf3;padding:12px 15px;border-radius:0 8px 8px 0}.warn{border-left:5px solid var(--amber);background:#fff8e8;padding:12px 15px;border-radius:0 8px 8px 0}.shot{width:100%;border:1px solid #cbd5e1;border-radius:8px;margin:14px 0;background:#111827}.toc a{display:inline-block;margin:4px 10px 4px 0;text-decoration:none}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);background:#fbfdff;border-radius:8px;padding:15px}@media(max-width:850px){main{padding:16px}header{padding:26px}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>MongoDB Performance All-Round Tutorial</h1>
+  <p>A complete runnable project for log analysis, performance checking, memory bottlenecks, storage bottlenecks, slow query tuning, profiling, synthetic load generation, and dashboard-based monitoring.</p>
+</header>
+<main>
+<section class="toc">
+  <h2>Contents</h2>
+  <a href="#purpose">Purpose</a>
+  <a href="#run">Run Dashboard</a>
+  <a href="#docker">Docker</a>
+  <a href="#load">Synthetic Load</a>
+  <a href="#logs">Logs</a>
+  <a href="#performance">Performance</a>
+  <a href="#memory">Memory</a>
+  <a href="#storage">Storage</a>
+  <a href="#profiler">Profiler</a>
+  <a href="#replication">Replication</a>
+  <a href="#runbook">Runbook</a>
+</section>
+
+<section id="purpose">
+  <h2>1. Project Purpose</h2>
+  <p><code>performance-all-round</code> is a dashboard plus tutorial project. It is meant to be useful during real MongoDB administration practice, not only as a static document.</p>
+  <table>
+    <tr><th>Layer</th><th>What It Does</th></tr>
+    <tr><td>Web dashboard</td><td>Runs MongoDB performance checks through SSH and shows output in the browser.</td></tr>
+    <tr><td>Synthetic load</td><td>Creates realistic collections and indexes so slow query, profiler, stats, and monitoring checks have meaningful data.</td></tr>
+    <tr><td>Command scripts</td><td>Reusable MongoDB scripts for load generation and slow query comparison.</td></tr>
+    <tr><td>Tutorial</td><td>Step-by-step commands, interpretation notes, and screenshot panels for every major topic.</td></tr>
+  </table>
+  <img class="shot" src="assets/screenshots/01-dashboard-scope.png" alt="Dashboard scope screenshot">
+</section>
+
+<section id="run">
+  <h2>2. Run the Dashboard Locally</h2>
+  <p>The app uses only Node.js built-in modules. No npm install is required.</p>
+  <pre><code>cd D:\new-projects\mongodb-course\performance-all-round
+$env:PERF_SSH_KEY="D:\mongo.pem"
+$env:PERF_SSH_HOST="18.61.157.150"
+$env:PERF_MONGO_PASSWORD="&lt;admin-password&gt;"
+npm start</code></pre>
+  <p>Open the dashboard:</p>
+  <pre><code>http://localhost:3010</code></pre>
+  <h3>Dashboard Buttons</h3>
+  <ul>
+    <li><strong>Replica Health</strong> checks <code>db.hello()</code> and <code>rs.status()</code>.</li>
+    <li><strong>Server Status</strong> captures connections, op counters, memory, WiredTiger cache, and locks.</li>
+    <li><strong>Analyze Logs</strong> tails MongoDB logs and filters slow query, TLS, and authentication messages.</li>
+    <li><strong>Memory / Disk</strong> runs <code>free -m</code>, <code>df -h</code>, and <code>top</code>.</li>
+    <li><strong>mongostat</strong> and <strong>mongotop</strong> provide live command-line monitoring.</li>
+    <li><strong>Generate Load</strong> creates the lab database and indexes.</li>
+    <li><strong>Run Profiler Slow Query</strong> compares slow query performance before and after index creation.</li>
+  </ul>
+  <img class="shot" src="assets/screenshots/07-dashboard-runner.png" alt="Dashboard runner screenshot">
+</section>
+
+<section id="docker">
+  <h2>3. Dockerized Run</h2>
+  <p>The Docker image contains Node.js and <code>openssh-client</code>. MongoDB tools do not need to exist inside the container because they run on the MongoDB server through SSH.</p>
+  <pre><code>cd D:\new-projects\mongodb-course\performance-all-round
+docker build -t performance-all-round .
+
+docker run --rm -p 3010:3010 `
+  -v D:\mongo.pem:/keys/mongo.pem:ro `
+  -e PERF_SSH_KEY=/keys/mongo.pem `
+  -e PERF_SSH_HOST=18.61.157.150 `
+  -e PERF_MONGO_PASSWORD="&lt;admin-password&gt;" `
+  performance-all-round</code></pre>
+  <img class="shot" src="assets/screenshots/08-docker-run.png" alt="Docker run screenshot">
+</section>
+
+<section id="load">
+  <h2>4. Synthetic Load Generation</h2>
+  <p>The dashboard runs <code>scripts/synthetic_load.js</code> on the MongoDB primary. The script creates a clean lab database named <code>performance_all_round_lab</code> by default.</p>
+  <div class="warn">The synthetic load script drops and recreates only the configured lab database. Keep the default lab database name unless you intentionally want to recreate another database.</div>
+  <pre><code>// Default collections
+customers: 20000
+orders: 75000
+events: 25000
+
+// Main tuning index
+db.orders.createIndex(
+  { region: 1, status: 1, amount: 1, createdAt: -1 },
+  { name: "idx_region_status_amount_createdAt" }
+)</code></pre>
+  <h3>Why This Data Is Useful</h3>
+  <ul>
+    <li><code>orders</code> supports slow query tuning, index comparison, and stats.</li>
+    <li><code>events</code> supports high-volume monitoring and TTL examples.</li>
+    <li><code>customers</code> supports partial index and lookup-style workloads.</li>
+  </ul>
+  <img class="shot" src="assets/screenshots/02-synthetic-load.png" alt="Synthetic load screenshot">
+</section>
+
+<section id="logs">
+  <h2>5. Log Analysis Commands</h2>
+  <p>Logs are the best source when you need to know exactly what MongoDB recorded: slow query, TLS failure, authentication, index build, restore, import, network disconnect, or storage warning.</p>
+  <pre><code>sudo tail -n 120 /var/log/mongodb/mongod.log
+sudo grep -i "slow query" /var/log/mongodb/mongod.log | tail -n 40
+sudo grep -i "SSLHandshakeFailed\|authentication\|Successfully authenticated" /var/log/mongodb/mongod.log | tail -n 40
+sudo grep -i "Index build\|WTCHKPT\|error\|exception" /var/log/mongodb/mongod.log | tail -n 40</code></pre>
+  <h3>How to Read Log Evidence</h3>
+  <ul>
+    <li><code>planSummary: COLLSCAN</code> points to a query that scanned a collection.</li>
+    <li><code>docsExamined</code> shows how much data MongoDB had to inspect.</li>
+    <li><code>SSLHandshakeFailed</code> usually means the client did not use TLS or used the wrong certificate chain.</li>
+    <li>Index build messages confirm index creation activity.</li>
+  </ul>
+  <img class="shot" src="assets/screenshots/03-log-analysis.png" alt="Log analysis screenshot">
+</section>
+
+<section id="performance">
+  <h2>6. Performance Checking</h2>
+  <p>Performance checking is a sequence: identify the expensive operation, read the plan, check server pressure, then fix the query or index.</p>
+  <pre><code>db.serverStatus()
+db.getSiblingDB("admin").aggregate([{ $currentOp: { allUsers: true, idleConnections: false } }])
+
+db.orders.find({
+  region: "HYD",
+  status: "PAID",
+  amount: { $gt: 100000 }
+}).sort({ createdAt: -1 }).limit(25).explain("executionStats")</code></pre>
+  <table>
+    <tr><th>Metric</th><th>Meaning</th></tr>
+    <tr><td><code>totalDocsExamined</code></td><td>Documents MongoDB inspected. Lower is usually better.</td></tr>
+    <tr><td><code>totalKeysExamined</code></td><td>Index keys MongoDB inspected.</td></tr>
+    <tr><td><code>executionTimeMillis</code></td><td>Time spent executing the operation.</td></tr>
+    <tr><td><code>planSummary</code></td><td>Quick signal such as <code>COLLSCAN</code> or <code>IXSCAN</code>.</td></tr>
+  </table>
+  <img class="shot" src="assets/screenshots/04-performance-checking.png" alt="Performance checking screenshot">
+</section>
+
+<section id="memory">
+  <h2>7. Memory Bottlenecks</h2>
+  <p>Memory bottlenecks appear when MongoDB and the OS cannot keep the active working set in RAM. Watch WiredTiger cache, available memory, dirty bytes, eviction pressure, and swap.</p>
+  <pre><code>free -m
+
+const s = db.serverStatus()
+printjson({
+  mem: s.mem,
+  cacheBytes: s.wiredTiger.cache["bytes currently in the cache"],
+  maxCacheBytes: s.wiredTiger.cache["maximum bytes configured"],
+  dirtyBytes: s.wiredTiger.cache["tracked dirty bytes in the cache"],
+  pagesRead: s.wiredTiger.cache["pages read into cache"],
+  pagesWritten: s.wiredTiger.cache["pages written from cache"]
+})</code></pre>
+  <p class="note">If cache is near maximum and pages read from disk keep increasing quickly, the workload may be larger than memory or queries may be scanning too much data.</p>
+</section>
+
+<section id="storage">
+  <h2>8. Storage Bottlenecks</h2>
+  <p>Storage bottlenecks can come from low disk space, slow disk reads, heavy checkpoints, large indexes, or write bursts.</p>
+  <pre><code>df -h
+sudo du -sh /var/lib/mongodb
+
+use performance_all_round_lab
+db.stats(1024 * 1024)
+db.orders.stats(1024 * 1024)
+db.events.stats(1024 * 1024)</code></pre>
+  <h3>Signals</h3>
+  <ul>
+    <li>Root disk usage above a safe threshold.</li>
+    <li>Index size growing faster than expected.</li>
+    <li>Slow query logs with large <code>bytesRead</code>.</li>
+    <li>High disk wait in OS tools.</li>
+  </ul>
+  <img class="shot" src="assets/screenshots/05-bottlenecks.png" alt="Memory and storage bottleneck screenshot">
+</section>
+
+<section id="profiler">
+  <h2>9. Profiling and Slow Query Performance</h2>
+  <p>The profiler should be enabled for a short investigation window. The project script enables profiler, forces a baseline query, creates the supporting index, compares results, reads <code>system.profile</code>, and disables profiler.</p>
+  <pre><code>use performance_all_round_lab
+db.setProfilingLevel(1, { slowms: 10, sampleRate: 1.0 })
+
+const filter = { region: "HYD", status: "PAID", amount: { $gt: 100000 } }
+db.orders.find(filter).sort({ createdAt: -1 }).limit(25).explain("executionStats")
+
+db.orders.createIndex(
+  { region: 1, status: 1, amount: 1, createdAt: -1 },
+  { name: "idx_region_status_amount_createdAt" }
+)
+
+db.orders.find(filter).sort({ createdAt: -1 }).limit(25).explain("executionStats")
+db.system.profile.find({}, { ts: 1, millis: 1, docsExamined: 1, keysExamined: 1, planSummary: 1 }).sort({ ts: -1 }).limit(10)
+db.setProfilingLevel(0)</code></pre>
+  <img class="shot" src="assets/screenshots/06-profiler-slow-query.png" alt="Profiler slow query screenshot">
+</section>
+
+<section id="replication">
+  <h2>10. Replica Set Health and Lag</h2>
+  <p>Performance can look bad when secondaries lag, elections happen, or clients cannot reach advertised replica set members. Check replica health together with server metrics.</p>
+  <pre><code>rs.status().members.map(m =&gt; ({
+  name: m.name,
+  stateStr: m.stateStr,
+  health: m.health,
+  optimeDate: m.optimeDate,
+  pingMs: m.pingMs,
+  syncSourceHost: m.syncSourceHost || ""
+}))
+
+rs.printReplicationInfo()
+rs.printSecondaryReplicationInfo()</code></pre>
+</section>
+
+<section id="runbook">
+  <h2>11. All-Round Troubleshooting Runbook</h2>
+  <ol>
+    <li>Confirm the primary with <code>db.hello()</code>.</li>
+    <li>Check replica set health and lag with <code>rs.status()</code>.</li>
+    <li>Run dashboard <strong>Server Status</strong> to inspect connections, op counters, memory, cache, and locks.</li>
+    <li>Run dashboard <strong>Analyze Logs</strong> to inspect slow query, TLS, auth, and index build messages.</li>
+    <li>Run dashboard <strong>Memory / Disk</strong> for OS-level pressure.</li>
+    <li>Run <strong>mongostat</strong> for live server counters.</li>
+    <li>Run <strong>mongotop</strong> to identify hot namespaces.</li>
+    <li>Enable profiler briefly and capture <code>system.profile</code>.</li>
+    <li>Use <code>explain("executionStats")</code> to compare query plans.</li>
+    <li>Create or adjust indexes, then re-test the same query.</li>
+    <li>Disable profiler after collecting evidence.</li>
+  </ol>
+  <h3>Manual Command List</h3>
+  <p>See <code>scripts/commands.md</code> for a copyable command list.</p>
+</section>
+</main>
+</body>
+</html>

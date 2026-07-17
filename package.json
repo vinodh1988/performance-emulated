@@ -1,0 +1,20 @@
+{
+  "name": "performance-all-round",
+  "version": "1.0.0",
+  "description": "MongoDB all-round performance dashboard, synthetic load generator, and administration tutorial for a TLS-enabled replica set.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "mongodb",
+    "performance",
+    "profiler",
+    "logs",
+    "monitoring",
+    "wiredtiger",
+    "replica-set"
+  ],
+  "license": "UNLICENSED"
+}

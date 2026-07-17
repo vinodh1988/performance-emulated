@@ -1,0 +1,28 @@
+Profiler and Slow Query Performance
+
+Enable profiler:
+db.setProfilingLevel(1, { slowms: 10, sampleRate: 1.0 })
+
+Slow query:
+db.orders.find({
+  region: "HYD",
+  status: "PAID",
+  amount: { $gt: 100000 }
+}).sort({ createdAt: -1 }).limit(25)
+
+Compare:
+1. Drop tuning index.
+2. Run explain("executionStats").
+3. Create compound index.
+4. Run the same explain again.
+5. Review system.profile.
+6. Disable profiler.
+
+Index:
+db.orders.createIndex(
+  { region: 1, status: 1, amount: 1, createdAt: -1 },
+  { name: "idx_region_status_amount_createdAt" }
+)
+
+Goal:
+Reduce totalDocsExamined, reduce executionTimeMillis, and move from COLLSCAN to IXSCAN.

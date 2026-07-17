@@ -1,0 +1,22 @@
+MongoDB Log Analysis
+
+Main log:
+/var/log/mongodb/mongod.log
+
+Commands:
+sudo tail -n 120 /var/log/mongodb/mongod.log
+sudo grep -i "slow query" /var/log/mongodb/mongod.log | tail -n 40
+sudo grep -i "SSLHandshakeFailed|authentication|Successfully authenticated" /var/log/mongodb/mongod.log | tail -n 40
+sudo grep -i "Index build|WTCHKPT|error|exception" /var/log/mongodb/mongod.log | tail -n 40
+
+What to find:
+- Slow query records
+- Client TLS failures
+- Successful authentication
+- Index build start and completion
+- WiredTiger checkpoint messages
+- Restore and import activity
+- Network disconnects and client errors
+
+Production lesson:
+Logs explain what happened. Metrics explain how bad it is.

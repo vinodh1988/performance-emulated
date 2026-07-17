@@ -1,0 +1,20 @@
+Dashboard Runner Model
+
+Backend:
+server.js
+
+Runtime:
+Node.js native http server with no npm dependencies.
+
+Execution:
+- Browser sends a request to /api/run-check, /api/logs, /api/os, /api/run-tool, /api/load, or /api/profile-slow-query.
+- Backend builds a remote SSH command.
+- SSH connects to the primary node.
+- Remote command runs mongosh, mongostat, mongotop, grep, df, free, or top.
+- Output returns to the browser.
+
+Safety:
+- Password is required at runtime.
+- Password is redacted from displayed remote command.
+- Profiler script disables profiler after collecting evidence.
+- Synthetic load targets only performance_all_round_lab by default.

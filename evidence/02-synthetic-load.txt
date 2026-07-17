@@ -1,0 +1,28 @@
+Synthetic Load Generation
+
+Script:
+scripts/synthetic_load.js
+
+Database:
+performance_all_round_lab
+
+Collections:
+- customers
+- orders
+- events
+
+Default volume from dashboard:
+- orders: 75,000
+- events: 25,000
+- customers: 20,000
+
+Indexes created:
+- orders: idx_region_status_amount_createdAt
+- orders: idx_customer_createdAt
+- orders: idx_category_notes
+- events: idx_eventType_response_createdAt
+- events: idx_events_createdAt_ttl
+- customers: idx_active_customer_value
+
+Purpose:
+The load creates enough documents to make COLLSCAN, IXSCAN, profiler entries, storage stats, and monitoring tools meaningful.

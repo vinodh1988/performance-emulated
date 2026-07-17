@@ -1,0 +1,25 @@
+Performance All-Round Dashboard Scope
+
+Target:
+- TLS-enabled MongoDB replica set
+- Designed for Hyderabad rsTraining primary workflow
+- Uses SSH to primary and executes MongoDB commands on the server
+
+Dashboard checks:
+- Replica set health
+- MongoDB log analysis
+- serverStatus
+- currentOp
+- profiler entries
+- storage stats
+- replication lag
+- OS memory, disk, CPU
+- mongostat
+- mongotop
+- synthetic load generation
+- slow query comparison
+
+Credential model:
+- Password is entered in the UI or through environment variable
+- Password is redacted from command output
+- Source code does not hardcode the password

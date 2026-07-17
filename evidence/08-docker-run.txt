@@ -1,0 +1,20 @@
+Docker Run
+
+Build:
+docker build -t performance-all-round .
+
+Run:
+docker run --rm -p 3010:3010 \
+  -v D:\mongo.pem:/keys/mongo.pem:ro \
+  -e PERF_SSH_KEY=/keys/mongo.pem \
+  -e PERF_SSH_HOST=18.61.157.150 \
+  -e PERF_MONGO_PASSWORD="<admin-password>" \
+  performance-all-round
+
+Open:
+http://localhost:3010
+
+Notes:
+- Docker image includes Node.js and openssh-client.
+- MongoDB tools do not need to be installed in the container because tools run on the MongoDB server through SSH.
+- The SSH key is mounted read-only.

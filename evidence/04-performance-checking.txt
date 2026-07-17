@@ -1,0 +1,26 @@
+Performance Checking Workflow
+
+Start with:
+db.serverStatus()
+db.currentOp()
+mongostat
+mongotop
+explain("executionStats")
+
+Read these metrics:
+- totalDocsExamined
+- totalKeysExamined
+- nReturned
+- executionTimeMillis
+- planSummary
+- connections.current
+- opcounters
+- WiredTiger cache usage
+- lock wait counters
+- namespace read/write time
+
+Important interpretation:
+- High docsExamined with low keysExamined usually points to missing or weak indexes.
+- High keysExamined can still be expensive if the index is not selective enough.
+- High mongotop read time points to hot collections.
+- High dirty cache or disk iowait points to write or storage pressure.
