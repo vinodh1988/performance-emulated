@@ -531,6 +531,174 @@ async function installLabDatabase(client, c, options = {}) {
     ...output,
   };
 }
+let liveLoadSession = null;
+
+function liveTopRows(before, after) {
+  return Object.keys(after).map(ns => {
+    const a = before[ns] || {};
+    const b = after[ns] || {};
+    return {
+      ns,
+      totalMs: Math.max(0, (b.totalTime || 0) - (a.totalTime || 0)) / 1000,
+      readMs: Math.max(0, (b.readTime || 0) - (a.readTime || 0)) / 1000,
+      writeMs: Math.max(0, (b.writeTime || 0) - (a.writeTime || 0)) / 1000,
+      totalOps: Math.max(0, (b.totalCount || 0) - (a.totalCount || 0)),
+      readOps: Math.max(0, (b.readCount || 0) - (a.readCount || 0)),
+      writeOps: Math.max(0, (b.writeCount || 0) - (a.writeCount || 0)),
+    };
+  }).filter(r => r.totalMs || r.totalOps).sort((a, b) => b.totalMs - a.totalMs).slice(0, 25);
+}
+
+function liveStatus() {
+  if (!liveLoadSession) return { running: false, status: "idle", message: "No live load session has been started." };
+  return {
+    id: liveLoadSession.id,
+    running: liveLoadSession.status === "starting" || liveLoadSession.status === "running" || liveLoadSession.status === "stopping",
+    status: liveLoadSession.status,
+    startedAt: liveLoadSession.startedAt,
+    stoppedAt: liveLoadSession.stoppedAt,
+    database: liveLoadSession.database,
+    batchSize: liveLoadSession.batchSize,
+    iterations: liveLoadSession.iterations,
+    writes: liveLoadSession.writes,
+    reads: liveLoadSession.reads,
+    updates: liveLoadSession.updates,
+    errors: liveLoadSession.errors,
+    lastError: liveLoadSession.lastError,
+    mongostat: {
+      source: "Live serverStatus delta sampler collected while synthetic load is running.",
+      rows: liveLoadSession.mongostatRows.slice(-60),
+      analysis: liveLoadSession.mongostatRows.slice(-10).map(r => severity(
+        r.cacheUsedPct > 90 || r.dirtyPct > 20 ? "warning" : "good",
+        "live mongostat sample",
+        `cmd/s ${r.command.toFixed(1)}, query/s ${r.query.toFixed(1)}, insert/s ${r.insert.toFixed(1)}, update/s ${r.update.toFixed(1)}, cache ${r.cacheUsedPct}%, dirty ${r.dirtyPct}%.`,
+        r.cacheUsedPct > 90 ? "Investigate working set, indexes, and memory." : "No immediate action."
+      )),
+    },
+    mongotop: {
+      source: "Live top command deltas collected while synthetic load is running.",
+      rows: liveLoadSession.mongotopRows.slice(0, 25),
+      analysis: liveLoadSession.mongotopRows.slice(0, 10).map(r => severity(
+        r.totalMs > 100 ? "warning" : "good",
+        "live namespace activity",
+        `${r.ns}: total ${r.totalMs.toFixed(1)}ms, read ${r.readMs.toFixed(1)}ms, write ${r.writeMs.toFixed(1)}ms in the latest sample.`,
+        r.totalMs > 100 ? "Review profiler entries for this namespace." : "No immediate action."
+      )),
+    },
+  };
+}
+
+async function runLiveLoadSession(session, config) {
+  const c = mergeConfig(config);
+  const client = new MongoClient(c.mongoUri, mongoOptions(c));
+  try {
+    session.status = "starting";
+    await client.connect();
+    session.status = "running";
+    session.database = c.labDb;
+    await installLabDatabase(client, c, {});
+
+    const admin = client.db("admin");
+    const db = client.db(c.labDb);
+    const liveEvents = db.collection("live_events");
+    const orders = db.collection("orders");
+    const events = db.collection("events");
+    await liveEvents.createIndex({ createdAt: 1 }, { name: "idx_live_events_createdAt" }).catch(() => {});
+    await liveEvents.createIndex({ region: 1, eventType: 1, responseMs: -1 }, { name: "idx_live_events_region_type_response" }).catch(() => {});
+
+    let previousStatus = await admin.command({ serverStatus: 1 });
+    let previousTop = topTotals(await admin.command({ top: 1 }));
+    let previousAt = Date.now();
+
+    while (!session.stopRequested) {
+      const now = new Date();
+      const batch = [];
+      for (let i = 0; i < session.batchSize; i++) {
+        const n = session.writes + i + 1;
+        batch.push({
+          eventId: `LIVE${session.id}-${n}`,
+          customerId: "CUST" + String((n % 20000) + 1).padStart(6, "0"),
+          region: ["HYD", "MUM", "BLR", "DEL", "CHN", "PUN"][n % 6],
+          eventType: ["search", "cart", "checkout", "payment", "support", "export"][n % 6],
+          responseMs: 20 + ((n * 37) % 5000),
+          success: n % 19 !== 0,
+          createdAt: now,
+          payload: { source: "live-load", seq: n, worker: session.id },
+        });
+      }
+
+      const queryRegion = ["HYD", "MUM", "BLR", "DEL", "CHN", "PUN"][session.iterations % 6];
+      await Promise.all([
+        liveEvents.insertMany(batch, { ordered: false }).then(r => { session.writes += r.insertedCount || batch.length; }),
+        orders.find({ region: queryRegion, amount: { $gte: 50000 } }).sort({ createdAt: -1 }).limit(100).toArray().then(r => { session.reads += r.length; }),
+        events.aggregate([{ $match: { responseMs: { $gte: 1000 } } }, { $group: { _id: "$eventType", avgResponse: { $avg: "$responseMs" }, count: { $sum: 1 } } }, { $sort: { count: -1 } }, { $limit: 10 }]).toArray().then(r => { session.reads += r.length; }),
+        orders.updateOne({ region: queryRegion }, { $set: { lastLiveTouch: now }, $inc: { liveTouchCount: 1 } }).then(r => { session.updates += r.modifiedCount || 0; }),
+      ]);
+
+      session.iterations += 1;
+      const elapsed = Math.max((Date.now() - previousAt) / 1000, 0.5);
+      const currentStatus = await admin.command({ serverStatus: 1 });
+      const currentTop = topTotals(await admin.command({ top: 1 }));
+      const statRow = mongostatRow(previousStatus, currentStatus, elapsed);
+      const topRows = liveTopRows(previousTop, currentTop);
+      session.mongostatRows.push(statRow);
+      session.mongostatRows = session.mongostatRows.slice(-120);
+      session.mongotopRows = topRows;
+      session.updatedAt = new Date();
+      previousStatus = currentStatus;
+      previousTop = currentTop;
+      previousAt = Date.now();
+      await wait(1000);
+    }
+    session.status = "stopped";
+    session.stoppedAt = new Date();
+  } catch (err) {
+    session.status = "error";
+    session.errors += 1;
+    session.lastError = err.message;
+    session.stoppedAt = new Date();
+  } finally {
+    await client.close().catch(() => {});
+  }
+}
+
+function startLiveLoad(config, options = {}) {
+  if (liveLoadSession && ["starting", "running", "stopping"].includes(liveLoadSession.status)) return liveStatus();
+  liveLoadSession = {
+    id: String(Date.now()),
+    status: "starting",
+    stopRequested: false,
+    startedAt: new Date(),
+    stoppedAt: null,
+    database: mergeConfig(config).labDb,
+    batchSize: Math.max(10, Math.min(2000, Number(options.batchSize || 200))),
+    iterations: 0,
+    writes: 0,
+    reads: 0,
+    updates: 0,
+    errors: 0,
+    lastError: "",
+    mongostatRows: [],
+    mongotopRows: [],
+    updatedAt: null,
+  };
+  runLiveLoadSession(liveLoadSession, config).catch(err => {
+    liveLoadSession.status = "error";
+    liveLoadSession.lastError = err.message;
+    liveLoadSession.errors += 1;
+    liveLoadSession.stoppedAt = new Date();
+  });
+  return liveStatus();
+}
+
+function stopLiveLoad() {
+  if (!liveLoadSession) return liveStatus();
+  if (["starting", "running"].includes(liveLoadSession.status)) {
+    liveLoadSession.status = "stopping";
+    liveLoadSession.stopRequested = true;
+  }
+  return liveStatus();
+}
 async function profileSlowQuery(client, c) {
   const db = client.db(c.labDb);
   const orders = db.collection("orders");
@@ -596,6 +764,18 @@ async function handleApi(req, res) {
       return json(res, 200, { label: "Synthetic Load Generation", ...output });
     }
 
+    if (req.method === "POST" && req.url === "/api/live-load/start") {
+      const body = await readBody(req);
+      return json(res, 200, { label: "Live Load Start", ok: true, result: startLiveLoad(body.config || {}, { batchSize: body.batchSize }) });
+    }
+
+    if (req.method === "GET" && req.url === "/api/live-load/status") {
+      return json(res, 200, { label: "Live Load Status", ok: true, result: liveStatus() });
+    }
+
+    if (req.method === "POST" && req.url === "/api/live-load/stop") {
+      return json(res, 200, { label: "Live Load Stop", ok: true, result: stopLiveLoad() });
+    }
     if (req.method === "POST" && req.url === "/api/profile-slow-query") {
       const body = await readBody(req);
       const output = await withClient(body.config, profileSlowQuery);

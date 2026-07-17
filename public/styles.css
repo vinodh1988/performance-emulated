@@ -23,3 +23,6 @@
 .explain-stack { margin-bottom: 14px; }
 .explain-stack .panel { margin-bottom: 0; }
 .explain-stack > .panel { margin-bottom: 14px; }
+
+.load-form button.danger { background: var(--red); }
+.load-form button:disabled { opacity: .55; cursor: not-allowed; }
