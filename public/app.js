@@ -274,9 +274,21 @@ function drawLine(id, labels, values, color = "#0f7b45") {
   ctx.fillStyle = "#5a687a"; ctx.font = "12px Segoe UI"; ctx.fillText(`max ${fmt(max)}`, pad, 14);
 }
 
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value || "-";
+}
+
+function updateClusterStrip(summary, members) {
+  setText("stripReplicaSet", summary?.setName || "-");
+  setText("stripPrimary", summary?.primary || "-");
+  setText("stripMembers", Array.isArray(members) && members.length ? members.map(m => m.name).join(", ") : "-");
+  setText("stripLabDb", summary?.labDatabase || "-");
+}
 function renderOverview(data) {
   const r = data.result || data;
   const s = r.summary || {};
+  updateClusterStrip(s, r.health?.members || []);
   content.innerHTML = `
     ${pageIntro("overview")}
     <section class="metrics">

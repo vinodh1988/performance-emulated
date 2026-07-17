@@ -1,4 +1,4 @@
-﻿services:
+services:
   performance-all-round:
     build:
       context: .
@@ -8,8 +8,8 @@
       - "3010:3010"
     environment:
       PORT: "3010"
-      PERF_MONGO_URI: "${PERF_MONGO_URI:-mongodb://172.31.4.11:27017,172.31.10.231:27017,172.31.15.9:27017/admin?replicaSet=rsTraining&authSource=admin&tls=true}"
-      PERF_MONGO_USER: "${PERF_MONGO_USER:-siteAdmin}"
+      PERF_MONGO_URI: "${PERF_MONGO_URI}"
+      PERF_MONGO_USER: "${PERF_MONGO_USER}"
       PERF_MONGO_PASSWORD: "${PERF_MONGO_PASSWORD}"
       PERF_AUTH_DB: "${PERF_AUTH_DB:-admin}"
       PERF_TLS_CA_FILE: "${PERF_TLS_CA_FILE:-/certs/mongodb-ca.crt}"

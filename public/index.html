@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -30,7 +30,7 @@
     <header class="topbar">
       <div>
         <h1 id="pageTitle">Overview</h1>
-        <p id="pageSubtitle">Preconfigured analyzer for rsTraining. No connection details required.</p>
+        <p id="pageSubtitle">Environment-driven analyzer using the MongoDB connection from server .env.</p>
       </div>
       <div class="top-actions">
         <button id="refreshPage">Refresh Page</button>
@@ -39,10 +39,10 @@
     </header>
 
     <section class="cluster-strip">
-      <div><span>Replica Set</span><strong>rsTraining</strong></div>
-      <div><span>Primary</span><strong>172.31.4.11:27017</strong></div>
-      <div><span>Secondaries</span><strong>172.31.10.231, 172.31.15.9</strong></div>
-      <div><span>Lab DB</span><strong>performance_all_round_lab</strong></div>
+      <div><span>Replica Set</span><strong id="stripReplicaSet">Loading...</strong></div>
+      <div><span>Primary</span><strong id="stripPrimary">Loading...</strong></div>
+      <div><span>Members</span><strong id="stripMembers">Loading...</strong></div>
+      <div><span>Lab DB</span><strong id="stripLabDb">Loading...</strong></div>
     </section>
 
     <section id="content" class="content"></section>

@@ -1,4 +1,4 @@
-﻿const http = require("http");
+const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { MongoClient } = require("mongodb");
@@ -9,8 +9,8 @@ const PUBLIC = path.join(ROOT, "public");
 const DOCS = path.join(ROOT, "docs");
 
 const DEFAULT_CONFIG = {
-  mongoUri: process.env.PERF_MONGO_URI || "mongodb://172.31.4.11:27017,172.31.10.231:27017,172.31.15.9:27017/admin?replicaSet=rsTraining&authSource=admin&tls=true",
-  mongoUser: process.env.PERF_MONGO_USER || "siteAdmin",
+  mongoUri: process.env.PERF_MONGO_URI || "",
+  mongoUser: process.env.PERF_MONGO_USER || "",
   mongoPassword: process.env.PERF_MONGO_PASSWORD || "",
   authDb: process.env.PERF_AUTH_DB || "admin",
   tlsCAFile: process.env.PERF_TLS_CA_FILE || "/certs/mongodb-ca.crt",
